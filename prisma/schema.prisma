@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TournamentStatus {
+  draft
+  grouping
+  in_progress
+  finished
+}
+
+enum MatchStatus {
+  pending
+  completed
+}
+
+model Tournament {
+  id             String           @id @default(cuid())
+  name           String
+  status         TournamentStatus @default(draft)
+  teamsPerGroup  Int              @default(4)
+  pointsPerGame  Int              @default(21)
+  createdAt      DateTime         @default(now())
+  finishedAt     DateTime?
+
+  teams   Team[]
+  groups  Group[]
+  courts  Court[]
+  matches Match[]
+}
+
+model Team {
+  id           String  @id @default(cuid())
+  tournamentId String
+  name         String
+  player1Name  String
+  player2Name  String
+  seedLevel    Int
+  groupId      String?
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  group      Group?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  matchesAsA Match[] @relation("MatchTeamA")
+  matchesAsB Match[] @relation("MatchTeamB")
+
+  @@index([tournamentId])
+  @@index([groupId])
+}
+
+model Group {
+  id           String @id @default(cuid())
+  tournamentId String
+  name         String
+  displayOrder Int
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  teams      Team[]
+  matches    Match[]
+
+  @@index([tournamentId])
+}
+
+model Court {
+  id           String @id @default(cuid())
+  tournamentId String
+  name         String
+  displayOrder Int
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  matches    Match[]
+
+  @@index([tournamentId])
+}
+
+model Match {
+  id           String      @id @default(cuid())
+  tournamentId String
+  groupId      String
+  courtId      String?
+  teamAId      String
+  teamBId      String
+  scoreA       Int         @default(0)
+  scoreB       Int         @default(0)
+  status       MatchStatus @default(pending)
+  roundNumber  Int
+  matchOrder   Int
+  finishedAt   DateTime?
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  group      Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  court      Court?     @relation(fields: [courtId], references: [id], onDelete: SetNull)
+  teamA      Team       @relation("MatchTeamA", fields: [teamAId], references: [id], onDelete: Cascade)
+  teamB      Team       @relation("MatchTeamB", fields: [teamBId], references: [id], onDelete: Cascade)
+
+  @@index([tournamentId])
+  @@index([groupId])
+  @@index([courtId])
+}
