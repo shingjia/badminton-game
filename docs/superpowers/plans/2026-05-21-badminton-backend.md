@@ -315,32 +315,32 @@ npx prisma migrate dev --create-only --name add_standings_view
 ```sql
 CREATE VIEW team_standings AS
 SELECT
-  t.id                        AS team_id,
-  t.group_id                  AS group_id,
-  t.tournament_id             AS tournament_id,
+  t.id                            AS team_id,
+  t."groupId"                     AS group_id,
+  t."tournamentId"                AS tournament_id,
   COUNT(*) FILTER (
-    WHERE (m.team_a_id = t.id AND m.score_a > m.score_b)
-       OR (m.team_b_id = t.id AND m.score_b > m.score_a)
-  )                           AS wins,
+    WHERE (m."teamAId" = t.id AND m."scoreA" > m."scoreB")
+       OR (m."teamBId" = t.id AND m."scoreB" > m."scoreA")
+  )                               AS wins,
   COUNT(*) FILTER (WHERE m.status = 'completed') AS played,
   COALESCE(SUM(
-    CASE WHEN m.team_a_id = t.id THEN m.score_a - m.score_b
-         WHEN m.team_b_id = t.id THEN m.score_b - m.score_a
+    CASE WHEN m."teamAId" = t.id THEN m."scoreA" - m."scoreB"
+         WHEN m."teamBId" = t.id THEN m."scoreB" - m."scoreA"
          ELSE 0 END
-  ), 0)                       AS point_diff,
+  ), 0)                           AS point_diff,
   COALESCE(SUM(
-    CASE WHEN m.team_a_id = t.id THEN m.score_a
-         WHEN m.team_b_id = t.id THEN m.score_b
+    CASE WHEN m."teamAId" = t.id THEN m."scoreA"
+         WHEN m."teamBId" = t.id THEN m."scoreB"
          ELSE 0 END
-  ), 0)                       AS points_for
+  ), 0)                           AS points_for
 FROM "Team" t
 LEFT JOIN "Match" m
-  ON (m.team_a_id = t.id OR m.team_b_id = t.id)
+  ON (m."teamAId" = t.id OR m."teamBId" = t.id)
  AND m.status = 'completed'
-GROUP BY t.id, t.group_id, t.tournament_id;
+GROUP BY t.id, t."groupId", t."tournamentId";
 ```
 
-注意：Prisma 預設 table 名稱用 PascalCase（如 `Team`、`Match`）。欄位名稱會 snake_case（`team_a_id`、`group_id` 等）。
+注意：Prisma 預設 table 與欄位名稱都會原樣保留（PascalCase / camelCase），不會自動 snake_case，因此 SQL 內參考欄位要加雙引號（如 `m."teamAId"`、`t."groupId"`）。view 對外的欄位 alias 才用 snake_case，給應用層查詢使用。
 
 - [ ] **Step 2: Apply migration**
 
@@ -352,11 +352,18 @@ npx prisma migrate dev
 
 - [ ] **Step 3: 驗證 view 存在**
 
+從專案根目錄跑（不需要 docker exec，直接打 DATABASE_URL）：
+
 ```bash
-docker exec -it badminton-pg psql -U app -d badminton -c "\dv"
+node -e "const{PrismaClient}=require('@prisma/client');const p=new PrismaClient();(async()=>{const r=await p.\$queryRawUnsafe('SELECT column_name FROM information_schema.columns WHERE table_name = \$1 ORDER BY ordinal_position','team_standings');console.log(JSON.stringify(r));await p.\$disconnect()})()"
 ```
 
-預期：列出 `team_standings`。
+預期輸出 7 個欄位：
+```
+[{"column_name":"team_id"},{"column_name":"group_id"},{"column_name":"tournament_id"},{"column_name":"wins"},{"column_name":"played"},{"column_name":"point_diff"},{"column_name":"points_for"}]
+```
+
+（若本機跑 container 也可以用 `docker exec -it badminton-pg psql -U app -d badminton -c "\dv"`，但跨 host / WSL 用上面的 node 指令較通用。）
 
 - [ ] **Step 4: Commit**
 
