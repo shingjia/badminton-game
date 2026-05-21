@@ -1,20 +1,65 @@
 services:
+
+  # ──────────────────────────────────────────────────────────────
+  # nginx：反向代理，對外 port 由 HTTP_PORT 設定（預設 8080）
+  # ──────────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - badminton-net
+
+  # ──────────────────────────────────────────────────────────────
+  # app：Next.js 應用（standalone 模式）
+  # ──────────────────────────────────────────────────────────────
+  app:
+    build: .
+    env_file:
+      - .env
+    environment:
+      # 覆寫 DATABASE_URL，強制走 docker 內網 hostname
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public"
+      NODE_ENV: production
+    expose:
+      - "3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - badminton-net
+
+  # ──────────────────────────────────────────────────────────────
+  # db：PostgreSQL 16，只在 docker 內網暴露 5432
+  # ──────────────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: app
-      POSTGRES_PASSWORD: app
-      POSTGRES_DB: badminton
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app -d badminton"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 10
     restart: unless-stopped
+    networks:
+      - badminton-net
+
+networks:
+  badminton-net:
+    driver: bridge
 
 volumes:
   pgdata:
