@@ -14,14 +14,23 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
     "@prisma/client": "^5.22.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.16.0",
     "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18",
+    "react-hook-form": "^7.76.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss-animate": "^1.0.7",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "^20.19.41",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/supertest": "^7.2.0",
