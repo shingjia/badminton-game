@@ -6,7 +6,7 @@ export class ApiError extends Error {
 
 export async function api<T = any>(
   path: string,
-  init?: RequestInit & { body?: any },
+  init?: Omit<RequestInit, 'body'> & { body?: any },
 ): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (init?.headers) Object.assign(headers, init.headers);
