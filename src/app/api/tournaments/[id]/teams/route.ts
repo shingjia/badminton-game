@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { notFound, ok, parseJson, requireAdmin } from '@/lib/api-helpers';
 import { CreateTeam } from '@/lib/schemas';
+import { emitToTournament } from '@/lib/socket-server';
 
 type Params = { params: { id: string } };
 
@@ -25,5 +26,6 @@ export async function POST(req: NextRequest, { params }: Params) {
   const team = await prisma.team.create({
     data: { tournamentId: params.id, ...parsed.data },
   });
+  emitToTournament(params.id, 'team.added', { tournamentId: params.id, team });
   return ok(team, 201);
 }

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { notFound, ok, parseJson, requireAdmin, ensureStatus, conflict } from '@/lib/api-helpers';
 import { MoveTeamGroup } from '@/lib/schemas';
+import { emitToTournament } from '@/lib/socket-server';
 
 type Params = { params: { id: string } };
 
@@ -28,5 +29,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     where: { id: params.id },
     data: { groupId: parsed.data.groupId },
   });
+  emitToTournament(updated.tournamentId, 'team.updated', { tournamentId: updated.tournamentId, team: updated });
   return ok(updated);
 }

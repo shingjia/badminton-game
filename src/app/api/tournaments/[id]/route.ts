@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { notFound, ok, parseJson, requireAdmin } from '@/lib/api-helpers';
 import { UpdateTournament } from '@/lib/schemas';
+import { emitToTournament } from '@/lib/socket-server';
 
 type Params = { params: { id: string } };
 
@@ -21,6 +22,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .update({ where: { id: params.id }, data: parsed.data })
     .catch(() => null);
   if (!t) return notFound();
+  emitToTournament(t.id, 'tournament.updated', { tournamentId: t.id, tournament: t });
   return ok(t);
 }
 
@@ -31,5 +33,6 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     .delete({ where: { id: params.id } })
     .catch(() => null);
   if (!t) return notFound();
+  emitToTournament(params.id, 'tournament.deleted', { tournamentId: params.id });
   return ok({ deleted: true });
 }

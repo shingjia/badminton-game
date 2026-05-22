@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { conflict, notFound, ok, requireAdmin, ensureStatus } from '@/lib/api-helpers';
+import { emitToTournament } from '@/lib/socket-server';
 
 type Params = { params: { id: string } };
 
@@ -31,5 +32,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     where: { id: params.id },
     data: { status: 'in_progress' },
   });
+  emitToTournament(params.id, 'groups.locked', { tournamentId: params.id });
+  emitToTournament(params.id, 'tournament.updated', { tournamentId: params.id, tournament: updated });
   return ok(updated);
 }

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { conflict, notFound, ok, requireAdmin, ensureStatus } from '@/lib/api-helpers';
 import { snakeGroup } from '@/lib/algorithms/snake-grouping';
+import { emitToTournament } from '@/lib/socket-server';
 
 type Params = { params: { id: string } };
 
@@ -60,5 +61,6 @@ export async function POST(req: NextRequest, { params }: Params) {
     return groupRows;
   });
 
+  emitToTournament(params.id, 'groups.generated', { tournamentId: params.id, groups: result });
   return ok({ groups: result });
 }

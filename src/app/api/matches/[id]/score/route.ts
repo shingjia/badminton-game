@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { conflict, notFound, ok, parseJson, requireAdmin } from '@/lib/api-helpers';
 import { UpdateMatchScore } from '@/lib/schemas';
+import { emitToTournament } from '@/lib/socket-server';
 
 type Params = { params: { id: string } };
 
@@ -50,11 +51,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const pending = await prisma.match.count({
     where: { tournamentId: match.tournamentId, status: 'pending' },
   });
+  emitToTournament(updated.tournamentId, 'match.scored', { tournamentId: updated.tournamentId, match: updated });
   if (pending === 0) {
     await prisma.tournament.update({
       where: { id: match.tournamentId },
       data: { status: 'finished', finishedAt: new Date() },
     });
+    const final = await prisma.tournament.findUnique({ where: { id: match.tournamentId } });
+    if (final) emitToTournament(final.id, 'tournament.updated', { tournamentId: final.id, tournament: final });
   }
 
   return ok(updated);

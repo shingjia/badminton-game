@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { conflict, notFound, ok, requireAdmin, ensureStatus } from '@/lib/api-helpers';
 import { roundRobinPairs } from '@/lib/algorithms/circle-method';
 import { allocateCourts, type MatchInput } from '@/lib/algorithms/court-allocation';
+import { emitToTournament } from '@/lib/socket-server';
 
 type Params = { params: { id: string } };
 
@@ -87,5 +88,6 @@ export async function POST(req: NextRequest, { params }: Params) {
     return created;
   });
 
+  emitToTournament(params.id, 'match.generated', { tournamentId: params.id, matches: result });
   return ok({ matches: result, count: result.length });
 }
