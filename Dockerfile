@@ -27,12 +27,28 @@ COPY . .
 # 生成 Prisma client（schema.prisma 需在此階段可見）
 RUN npx prisma generate
 
-# Next.js standalone build（next.config.mjs 需有 output: 'standalone'）
+# Build Next.js（不用 standalone 模式 — Next.js 文件明確禁止 standalone + custom server）
 RUN npm run build
 
 # ──────────────────────────────────────────────────────────────
-# Stage 3: runner
-#   最小化映像：只含 standalone 產物與 production runtime
+# Stage 3: prod-deps
+#   只裝 production deps（保留 prisma CLI 因為它在 devDependencies）
+#   分一個 stage 而不直接 reuse deps stage，是為了拿到不含 dev tooling 的乾淨 node_modules
+# ──────────────────────────────────────────────────────────────
+FROM node:20-alpine AS prod-deps
+
+RUN apk add --no-cache libc6-compat openssl
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+# Prisma CLI 在 devDependencies 但 prod 需要跑 migrate deploy，所以全裝
+RUN npm ci
+
+# ──────────────────────────────────────────────────────────────
+# Stage 4: runner
+#   完整 next build artifacts + node_modules + 自訂 server.js
+#   image 較大，但 custom server + Socket.IO 不能用 standalone（官方限制）
 # ──────────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
@@ -48,37 +64,20 @@ ENV HOSTNAME="0.0.0.0"
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# 複製 Next.js standalone 產物
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/server.js ./server.js
-COPY --from=builder /app/node_modules/socket.io ./node_modules/socket.io
-COPY --from=builder /app/node_modules/socket.io-adapter ./node_modules/socket.io-adapter
-COPY --from=builder /app/node_modules/socket.io-parser ./node_modules/socket.io-parser
-COPY --from=builder /app/node_modules/@socket.io ./node_modules/@socket.io
-COPY --from=builder /app/node_modules/engine.io ./node_modules/engine.io
-COPY --from=builder /app/node_modules/engine.io-parser ./node_modules/engine.io-parser
-COPY --from=builder /app/node_modules/ws ./node_modules/ws
-COPY --from=builder /app/node_modules/cors ./node_modules/cors
-COPY --from=builder /app/node_modules/object-assign ./node_modules/object-assign
-COPY --from=builder /app/node_modules/vary ./node_modules/vary
-COPY --from=builder /app/node_modules/cookie ./node_modules/cookie
-COPY --from=builder /app/node_modules/accepts ./node_modules/accepts
-COPY --from=builder /app/node_modules/negotiator ./node_modules/negotiator
-COPY --from=builder /app/node_modules/mime-types ./node_modules/mime-types
-COPY --from=builder /app/node_modules/mime-db ./node_modules/mime-db
-COPY --from=builder /app/node_modules/base64id ./node_modules/base64id
-COPY --from=builder /app/node_modules/debug ./node_modules/debug
-COPY --from=builder /app/node_modules/ms ./node_modules/ms
-COPY --from=builder /app/.next/static ./.next/static
+# Build artifacts
+COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/server.js ./server.js
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/next.config.mjs ./next.config.mjs
 
-# 複製 Prisma schema 和 migrations（讓 prisma migrate deploy 可在啟動時執行）
+# Prisma schema 與 migrations（讓 prisma migrate deploy 可執行）
 COPY --from=builder /app/prisma ./prisma
-# 複製 Prisma client（standalone 不會自動包含 query engine）
+
+# 完整 node_modules（包含 next 全套 + socket.io + prisma + 所有 transitive deps）
+COPY --from=prod-deps /app/node_modules ./node_modules
+# Prisma client 是 build 階段 generate 的，要從 builder 拿
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
-# 安裝 Prisma CLI（版本與 package.json 對齊，避免 npx 抓到 latest major）
-RUN npm install -g prisma@5.22.0
 
 # 設定目錄擁有者
 RUN chown -R nextjs:nodejs /app
@@ -87,5 +86,5 @@ USER nextjs
 
 EXPOSE 3000
 
-# Next.js standalone 模式的入口點
+# 啟動 custom server（含 Socket.IO）
 CMD ["node", "server.js"]
