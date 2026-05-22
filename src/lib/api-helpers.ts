@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z, ZodError, ZodSchema } from 'zod';
+import type { TournamentStatus } from '@prisma/client';
 import { COOKIE_NAME, verifySession } from '@/lib/auth';
 
 export function requireAdmin(req: NextRequest): NextResponse | null {
@@ -41,4 +42,14 @@ export function conflict(message: string): NextResponse {
 
 export function ok<T>(data: T, status = 200): NextResponse {
   return NextResponse.json(data, { status });
+}
+
+export function ensureStatus(actual: TournamentStatus, allowed: TournamentStatus[]): NextResponse | null {
+  if (!allowed.includes(actual)) {
+    return NextResponse.json(
+      { error: 'invalid_status', message: `current status is ${actual}, expected one of ${allowed.join(',')}` },
+      { status: 409 },
+    );
+  }
+  return null;
 }
