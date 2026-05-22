@@ -79,12 +79,16 @@ COPY --from=prod-deps /app/node_modules ./node_modules
 # Prisma client 是 build 階段 generate 的，要從 builder 拿
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
+# Entrypoint: 啟動前跑 prisma migrate deploy，然後 exec CMD
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+
 # 設定目錄擁有者
-RUN chown -R nextjs:nodejs /app
+RUN chown -R nextjs:nodejs /app && chmod +x /app/docker-entrypoint.sh
 
 USER nextjs
 
 EXPOSE 3000
 
-# 啟動 custom server（含 Socket.IO）
+# Entrypoint 跑 migrate；CMD 才是真正的 server
+ENTRYPOINT ["sh", "/app/docker-entrypoint.sh"]
 CMD ["node", "server.js"]
