@@ -1,10 +1,9 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { SiteHeaderInner } from '@/components/site-header-inner';
 
-export function SiteHeader() {
+export function SiteHeader({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   if (pathname.startsWith('/t/')) return null;
-  return <SiteHeaderInner />;
+  return <>{children}</>;
 }
