@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 
 export type StandingRow = {
-  team_id: string;
+  pair_id: string;
   group_id: string;
   tournament_id: string;
   wins: number;
@@ -15,7 +15,7 @@ export async function getStandings(tournamentId: string): Promise<StandingRow[]>
   // bigint columns come back as bigint; cast in SQL
   const rows = await prisma.$queryRaw<StandingRow[]>`
     SELECT
-      team_id,
+      pair_id,
       group_id,
       tournament_id,
       wins::int             AS wins,
@@ -26,7 +26,7 @@ export async function getStandings(tournamentId: string): Promise<StandingRow[]>
         PARTITION BY group_id
         ORDER BY wins DESC, point_diff DESC, points_for DESC
       )::int                AS rank
-    FROM team_standings
+    FROM pair_standings
     WHERE tournament_id = ${tournamentId}
     ORDER BY group_id, rank
   `;
