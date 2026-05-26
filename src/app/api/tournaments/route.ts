@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   const t = await prisma.tournament.create({
     data: {
       name: parsed.data.name,
-      teamsPerGroup: parsed.data.teamsPerGroup ?? 4,
+      groupCount: parsed.data.groupCount ?? 4,
       pointsPerGame: parsed.data.pointsPerGame ?? 21,
     },
   });
