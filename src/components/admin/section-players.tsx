@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { BulkImportDialog } from '@/components/admin/bulk-import-dialog';
 import type { Player, Tournament } from '@prisma/client';
 
 export function SectionPlayers({
@@ -53,29 +54,34 @@ export function SectionPlayers({
       <h2 className="mb-3 text-xl font-semibold">2. 球員報名 ({players.length})</h2>
       <Card className="p-4">
         {!locked && (
-          <div className="mb-4 grid gap-3 md:grid-cols-4">
-            <div className="space-y-1">
-              <Label htmlFor="p-name">姓名</Label>
-              <Input
-                id="p-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="球員姓名"
-              />
+          <div className="mb-4 space-y-3">
+            <div className="flex justify-end">
+              <BulkImportDialog tournamentId={tournament.id} />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="p-level">等級</Label>
-              <Input
-                id="p-level"
-                value={level}
-                onChange={(e) => setLevel(e.target.value)}
-                placeholder="例：A、B、C"
-              />
-            </div>
-            <div className="flex items-end">
-              <Button onClick={add} disabled={!name.trim()} className="w-full">
-                新增
-              </Button>
+            <div className="grid gap-3 md:grid-cols-4">
+              <div className="space-y-1">
+                <Label htmlFor="p-name">姓名</Label>
+                <Input
+                  id="p-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="球員姓名"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="p-level">等級</Label>
+                <Input
+                  id="p-level"
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value)}
+                  placeholder="例：A、B、C"
+                />
+              </div>
+              <div className="flex items-end">
+                <Button onClick={add} disabled={!name.trim()} className="w-full">
+                  新增
+                </Button>
+              </div>
             </div>
           </div>
         )}
