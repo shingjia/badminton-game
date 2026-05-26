@@ -26,6 +26,9 @@ services:
       # 覆寫 DATABASE_URL，強制走 docker 內網 hostname
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public"
       NODE_ENV: production
+    volumes:
+      # 持久化上傳的圖片到 host ./uploads
+      - ./uploads:/app/data/uploads
     expose:
       - "3000"
     depends_on:
