@@ -14,13 +14,13 @@ export function CreateTournamentDialog() {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
-  const [teamsPerGroup, setTeamsPerGroup] = useState(4);
+  const [groupCount, setGroupCount] = useState(4);
 
   async function submit() {
     try {
       const t = await api<{ id: string }>('/api/tournaments', {
         method: 'POST',
-        body: { name, teamsPerGroup },
+        body: { name, groupCount },
       });
       setOpen(false);
       router.push(`/admin/t/${t.id}`);
@@ -44,14 +44,14 @@ export function CreateTournamentDialog() {
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="tpg">每組隊伍數</Label>
+            <Label htmlFor="gc">組數</Label>
             <Input
-              id="tpg"
+              id="gc"
               type="number"
-              min={2}
-              max={16}
-              value={teamsPerGroup}
-              onChange={(e) => setTeamsPerGroup(Number(e.target.value))}
+              min={1}
+              max={26}
+              value={groupCount}
+              onChange={(e) => setGroupCount(Number(e.target.value))}
             />
           </div>
           <Button onClick={submit} disabled={!name.trim()} className="w-full">

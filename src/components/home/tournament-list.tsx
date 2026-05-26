@@ -17,7 +17,7 @@ export function TournamentList({ tournaments }: { tournaments: Tournament[] }) {
               <StatusBadge status={t.status} />
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
-              每組 {t.teamsPerGroup} 隊 · {new Date(t.createdAt).toLocaleDateString('zh-TW')}
+              {t.groupCount} 組 · {new Date(t.createdAt).toLocaleDateString('zh-TW')}
             </CardContent>
           </Card>
         </Link>

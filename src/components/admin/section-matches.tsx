@@ -6,16 +6,23 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
-import type { Court, Group, Match, Team, Tournament } from '@prisma/client';
+import type { Court, Group, Match, Pair, Player, Tournament } from '@prisma/client';
 
-type MatchFull = Match & { teamA: Team; teamB: Team; court: Court | null; group: Group };
+type PairWithPlayers = Pair & { player1: Player; player2: Player };
+type MatchFull = Match & {
+  pairA: PairWithPlayers;
+  pairB: PairWithPlayers;
+  court: Court | null;
+  group: Group;
+};
+
+function pairLabel(p: PairWithPlayers) {
+  return `${p.player1.name} / ${p.player2.name}`;
+}
 
 export function SectionMatches({ tournament, revision }: { tournament: Tournament; revision: number }) {
   const { toast } = useToast();
   const [matches, setMatches] = useState<MatchFull[]>([]);
-  const canGenerate =
-    tournament.status === 'in_progress' &&
-    matches.every((m) => m.status === 'pending');
 
   useEffect(() => {
     api<MatchFull[]>(`/api/tournaments/${tournament.id}/matches`).then(setMatches);
@@ -54,7 +61,7 @@ export function SectionMatches({ tournament, revision }: { tournament: Tournamen
                 <div key={m.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
                   <div>
                     <span className="text-muted-foreground">#{m.matchOrder}</span>{' '}
-                    {m.teamA.name} <span className="mx-1">vs</span> {m.teamB.name}
+                    {pairLabel(m.pairA)} <span className="mx-1">vs</span> {pairLabel(m.pairB)}
                   </div>
                   {m.court && <Badge variant="outline" className="text-xs">{m.court.name}</Badge>}
                 </div>

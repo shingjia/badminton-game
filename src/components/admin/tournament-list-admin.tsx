@@ -17,7 +17,7 @@ export function TournamentListAdmin({ tournaments }: { tournaments: Tournament[]
               <StatusBadge status={t.status} />
             </CardHeader>
             <CardContent className="py-2 text-sm text-muted-foreground">
-              每組 {t.teamsPerGroup} 隊 · {new Date(t.createdAt).toLocaleString('zh-TW')}
+              {t.groupCount} 組 · {new Date(t.createdAt).toLocaleString('zh-TW')}
             </CardContent>
           </Card>
         </Link>

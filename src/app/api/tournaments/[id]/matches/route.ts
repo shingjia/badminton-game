@@ -9,8 +9,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
     where: { tournamentId: params.id },
     orderBy: [{ groupId: 'asc' }, { matchOrder: 'asc' }],
     include: {
-      teamA: true,
-      teamB: true,
+      pairA: { include: { player1: true, player2: true } },
+      pairB: { include: { player1: true, player2: true } },
       court: true,
       group: true,
     },
