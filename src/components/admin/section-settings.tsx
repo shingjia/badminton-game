@@ -9,11 +9,22 @@ import { api } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import type { Court, Tournament } from '@prisma/client';
 
+const BANNER_COLORS = [
+  { key: 'red', cls: 'bg-red-700' },
+  { key: 'blue', cls: 'bg-blue-700' },
+  { key: 'green', cls: 'bg-emerald-700' },
+  { key: 'purple', cls: 'bg-purple-700' },
+  { key: 'orange', cls: 'bg-orange-600' },
+  { key: 'slate', cls: 'bg-slate-700' },
+] as const;
+
 export function SectionSettings({ tournament }: { tournament: Tournament }) {
   const { toast } = useToast();
   const [name, setName] = useState(tournament.name);
   const [groupCount, setGroupCount] = useState(tournament.groupCount);
   const [pointsPerGame, setPointsPerGame] = useState(tournament.pointsPerGame);
+  const [bannerIcon, setBannerIcon] = useState(tournament.bannerIcon);
+  const [bannerColor, setBannerColor] = useState(tournament.bannerColor);
   const [courts, setCourts] = useState<Court[]>([]);
   const [newCourt, setNewCourt] = useState('');
 
@@ -27,7 +38,7 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
     try {
       await api(`/api/tournaments/${tournament.id}`, {
         method: 'PATCH',
-        body: { name, groupCount, pointsPerGame },
+        body: { name, groupCount, pointsPerGame, bannerIcon, bannerColor },
       });
       toast({ title: '已儲存' });
     } catch {
@@ -84,6 +95,36 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
             />
           </div>
         </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="s-icon">主視覺 icon（emoji）</Label>
+            <Input
+              id="s-icon"
+              value={bannerIcon}
+              onChange={(e) => setBannerIcon(e.target.value)}
+              maxLength={4}
+              placeholder="🏸"
+            />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label>主視覺底色</Label>
+            <div className="flex flex-wrap gap-2">
+              {BANNER_COLORS.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setBannerColor(c.key)}
+                  className={`h-8 w-8 rounded-full ${c.cls} transition ${
+                    bannerColor === c.key ? 'ring-2 ring-offset-2 ring-amber-500' : ''
+                  }`}
+                  aria-label={c.key}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
         <Button onClick={saveSettings} size="sm">
           儲存設定
         </Button>
