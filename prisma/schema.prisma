@@ -130,5 +130,7 @@ model Match {
 model AdminConfig {
   id           Int      @id @default(0)
   passwordHash String
+  siteName     String   @default("羽球友誼賽")
+  siteIcon     String   @default("🏸")
   updatedAt    DateTime @updatedAt
 }
