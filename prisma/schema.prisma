@@ -20,47 +20,69 @@ enum MatchStatus {
 }
 
 model Tournament {
-  id             String           @id @default(cuid())
-  name           String
-  status         TournamentStatus @default(draft)
-  teamsPerGroup  Int              @default(4)
-  pointsPerGame  Int              @default(21)
-  createdAt      DateTime         @default(now())
-  finishedAt     DateTime?
+  id            String           @id @default(cuid())
+  name          String
+  status        TournamentStatus @default(draft)
+  groupCount    Int              @default(4)
+  pointsPerGame Int              @default(21)
+  createdAt     DateTime         @default(now())
+  finishedAt    DateTime?
 
-  teams   Team[]
+  players Player[]
+  pairs   Pair[]
   groups  Group[]
   courts  Court[]
   matches Match[]
 }
 
-model Team {
+model Player {
   id           String  @id @default(cuid())
   tournamentId String
   name         String
-  player1Name  String
-  player2Name  String
-  seedLevel    Int
+  level        String?
   groupId      String?
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   group      Group?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
-  matchesAsA Match[] @relation("MatchTeamA")
-  matchesAsB Match[] @relation("MatchTeamB")
+  pairsAsP1 Pair[] @relation("PairPlayer1")
+  pairsAsP2 Pair[] @relation("PairPlayer2")
+
+  @@index([tournamentId])
+  @@index([groupId])
+}
+
+model Pair {
+  id           String @id @default(cuid())
+  tournamentId String
+  groupId      String
+  player1Id    String
+  player2Id    String
+  displayOrder Int
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  group      Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  player1    Player     @relation("PairPlayer1", fields: [player1Id], references: [id], onDelete: Cascade)
+  player2    Player     @relation("PairPlayer2", fields: [player2Id], references: [id], onDelete: Cascade)
+
+  matchesAsA Match[] @relation("MatchPairA")
+  matchesAsB Match[] @relation("MatchPairB")
 
   @@index([tournamentId])
   @@index([groupId])
 }
 
 model Group {
-  id           String @id @default(cuid())
-  tournamentId String
-  name         String
-  displayOrder Int
+  id              String    @id @default(cuid())
+  tournamentId    String
+  name            String
+  displayOrder    Int
+  levelCode       String
+  pairingLockedAt DateTime?
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  teams      Team[]
+  players    Player[]
+  pairs      Pair[]
   matches    Match[]
 
   @@index([tournamentId])
@@ -83,8 +105,8 @@ model Match {
   tournamentId String
   groupId      String
   courtId      String?
-  teamAId      String
-  teamBId      String
+  pairAId      String
+  pairBId      String
   scoreA       Int         @default(0)
   scoreB       Int         @default(0)
   status       MatchStatus @default(pending)
@@ -95,8 +117,8 @@ model Match {
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   group      Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
   court      Court?     @relation(fields: [courtId], references: [id], onDelete: SetNull)
-  teamA      Team       @relation("MatchTeamA", fields: [teamAId], references: [id], onDelete: Cascade)
-  teamB      Team       @relation("MatchTeamB", fields: [teamBId], references: [id], onDelete: Cascade)
+  pairA      Pair       @relation("MatchPairA", fields: [pairAId], references: [id], onDelete: Cascade)
+  pairB      Pair       @relation("MatchPairB", fields: [pairBId], references: [id], onDelete: Cascade)
 
   @@index([tournamentId])
   @@index([groupId])
