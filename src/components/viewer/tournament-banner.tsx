@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { Tournament } from '@prisma/client';
 
 const COLOR_BG: Record<string, string> = {
@@ -58,7 +59,14 @@ export function TournamentBanner({ tournament }: { tournament: Tournament }) {
           background: 'radial-gradient(circle, rgba(0,0,0,0.45), rgba(0,0,0,0))',
         }}
       />
-      <div className="relative container mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+      <div className="relative container mx-auto max-w-5xl px-4 py-3">
+        <Link
+          href="/"
+          className="mb-1 inline-block text-xs text-amber-200/90 hover:text-white"
+        >
+          ← 賽事列表
+        </Link>
+        <div className="flex items-center gap-3">
         {tournament.bannerIconImage ? (
           <img
             src={`/api/uploads/${tournament.bannerIconImage}`}
@@ -78,6 +86,7 @@ export function TournamentBanner({ tournament }: { tournament: Tournament }) {
             {tournament.name}
           </div>
           <div className={`text-xs ${sub}`}>雙打分組循環賽</div>
+        </div>
         </div>
       </div>
     </header>
