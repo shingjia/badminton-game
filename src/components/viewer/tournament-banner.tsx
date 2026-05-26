@@ -34,9 +34,17 @@ export function TournamentBanner({ tournament }: { tournament: Tournament }) {
   return (
     <header className={`sticky top-0 z-40 ${bg} text-white shadow`}>
       <div className="container mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
-        <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-3xl ${ring}`}>
-          {tournament.bannerIcon}
-        </span>
+        {tournament.bannerIconImage ? (
+          <img
+            src={`/api/uploads/${tournament.bannerIconImage}`}
+            alt=""
+            className="h-14 w-14 shrink-0 rounded-full border-2 border-amber-300 bg-white object-cover"
+          />
+        ) : (
+          <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-3xl ${ring}`}>
+            {tournament.bannerIcon}
+          </span>
+        )}
         <div className="min-w-0 flex-1">
           <div className="text-xs font-semibold tracking-wider text-amber-300">
             FRIENDLY MATCH ★ 友誼賽
