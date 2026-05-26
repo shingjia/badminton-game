@@ -13,12 +13,13 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const tournament = await prisma.tournament.findUnique({ where: { id: params.id } });
   if (!tournament) return notFound('tournament_not_found');
+
   const statusErr = ensureStatus(tournament.status, ['in_progress']);
   if (statusErr) return statusErr;
 
   const groups = await prisma.group.findMany({
     where: { tournamentId: params.id },
-    include: { teams: true },
+    include: { pairs: true },
     orderBy: { displayOrder: 'asc' },
   });
   const courts = await prisma.court.findMany({
@@ -28,35 +29,33 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   if (groups.length === 0) return conflict('no_groups');
 
-  // Build pairs per group with a global matchOrder offset for stable UI display
   type Draft = {
     tournamentId: string;
     groupId: string;
-    teamAId: string;
-    teamBId: string;
+    pairAId: string;
+    pairBId: string;
     roundNumber: number;
-    matchOrder: number; // unique within group; we'll re-number globally below
+    matchOrder: number;
   };
 
   const drafts: Draft[] = [];
   for (const g of groups) {
-    const teamIds = g.teams.map((t) => t.id);
-    const pairs = roundRobinPairs(teamIds);
-    for (const p of pairs) {
+    const pairIds = g.pairs.map((p) => p.id);
+    const matches = roundRobinPairs(pairIds);
+    for (const m of matches) {
       drafts.push({
         tournamentId: params.id,
         groupId: g.id,
-        teamAId: p.teamA,
-        teamBId: p.teamB,
-        roundNumber: p.roundNumber,
-        matchOrder: p.matchOrder,
+        pairAId: m.teamA,
+        pairBId: m.teamB,
+        roundNumber: m.roundNumber,
+        matchOrder: m.matchOrder,
       });
     }
   }
 
   if (drafts.length === 0) return conflict('no_matches_to_generate');
 
-  // Allocate courts based on roundNumber (cross-group batches)
   const matchInputs: MatchInput[] = drafts.map((d, idx) => ({
     id: `tmp${idx}`,
     groupId: d.groupId,
@@ -65,7 +64,6 @@ export async function POST(req: NextRequest, { params }: Params) {
   const allocations = allocateCourts(matchInputs, courts.map((c) => c.id));
   const courtById = new Map(allocations.map((a) => [a.id, a.courtId]));
 
-  // Write in a transaction: clear old matches first
   const result = await prisma.$transaction(async (tx) => {
     await tx.match.deleteMany({ where: { tournamentId: params.id } });
     const created = [];
@@ -76,8 +74,8 @@ export async function POST(req: NextRequest, { params }: Params) {
         data: {
           tournamentId: d.tournamentId,
           groupId: d.groupId,
-          teamAId: d.teamAId,
-          teamBId: d.teamBId,
+          pairAId: d.pairAId,
+          pairBId: d.pairBId,
           roundNumber: d.roundNumber,
           matchOrder: d.matchOrder,
           courtId,
