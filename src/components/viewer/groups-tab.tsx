@@ -3,17 +3,17 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { api } from '@/lib/api-client';
-import type { Group, Team } from '@prisma/client';
+import type { Group, Player } from '@prisma/client';
 
-type GroupWithTeams = Group & { teams: Team[] };
+type GroupWithPlayers = Group & { players: Player[] };
 
 export function GroupsTab({ tournamentId, revision }: { tournamentId: string; revision: number }) {
-  const [groups, setGroups] = useState<GroupWithTeams[]>([]);
+  const [groups, setGroups] = useState<GroupWithPlayers[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    api<GroupWithTeams[]>(`/api/tournaments/${tournamentId}/groups`)
+    api<GroupWithPlayers[]>(`/api/tournaments/${tournamentId}/groups`)
       .then(setGroups)
       .finally(() => setLoading(false));
   }, [tournamentId, revision]);
@@ -25,14 +25,15 @@ export function GroupsTab({ tournamentId, revision }: { tournamentId: string; re
     <div className="grid gap-4 py-4 md:grid-cols-2 lg:grid-cols-3">
       {groups.map((g) => (
         <Card key={g.id} className="p-4">
-          <div className="mb-2 text-lg font-semibold">{g.name} 組</div>
+          <div className="mb-2 text-lg font-semibold">
+            {g.name} 組
+            <span className="ml-2 text-sm text-muted-foreground">({g.levelCode})</span>
+          </div>
           <ul className="space-y-1 text-sm">
-            {g.teams.map((t) => (
-              <li key={t.id} className="flex justify-between">
-                <span>{t.name}</span>
-                <span className="text-muted-foreground">
-                  {t.player1Name} / {t.player2Name}
-                </span>
+            {g.players.map((p) => (
+              <li key={p.id} className="flex justify-between">
+                <span>{p.name}</span>
+                {p.level && <span className="text-muted-foreground">{p.level}</span>}
               </li>
             ))}
           </ul>
