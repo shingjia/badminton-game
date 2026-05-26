@@ -16,7 +16,7 @@ import { api, ApiError } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 
 type ParseFailure = { line: number; raw: string; reason: string };
-type ParsedRow = { name: string; level: string | null };
+type ParsedRow = { name: string; level: string };
 
 function parseCsvText(text: string): { rows: ParsedRow[]; failures: ParseFailure[] } {
   const rows: ParsedRow[] = [];
@@ -28,27 +28,27 @@ function parseCsvText(text: string): { rows: ParsedRow[]; failures: ParseFailure
     const trimmed = rawLine.trim();
     if (trimmed === '') return;
 
-    const firstComma = trimmed.indexOf(',');
-    let name: string;
-    let level: string | null;
-    if (firstComma === -1) {
-      name = trimmed;
-      level = null;
-    } else {
-      name = trimmed.slice(0, firstComma).trim();
-      const after = trimmed.slice(firstComma + 1).trim();
-      level = after === '' ? null : after;
+    const sepIdx = trimmed.search(/[,，\s]/);
+    if (sepIdx === -1) {
+      failures.push({ line: lineNo, raw: rawLine, reason: '缺等級' });
+      return;
     }
+    const name = trimmed.slice(0, sepIdx).trim();
+    const level = trimmed.slice(sepIdx + 1).trim();
 
     if (name === '') {
       failures.push({ line: lineNo, raw: rawLine, reason: 'name 空白' });
+      return;
+    }
+    if (level === '') {
+      failures.push({ line: lineNo, raw: rawLine, reason: '缺等級' });
       return;
     }
     if (name.length > 50) {
       failures.push({ line: lineNo, raw: rawLine, reason: 'name 超過 50 字' });
       return;
     }
-    if (level !== null && level.length > 10) {
+    if (level.length > 10) {
       failures.push({ line: lineNo, raw: rawLine, reason: 'level 超過 10 字' });
       return;
     }
@@ -112,13 +112,13 @@ export function BulkImportDialog({ tournamentId }: { tournamentId: string }) {
         <DialogHeader>
           <DialogTitle>批次匯入球員</DialogTitle>
           <DialogDescription>
-            一行一個球員，格式：姓名,等級（等級可留空）
+            一行一個球員，姓名 + 等級之間用逗號或空格分隔
           </DialogDescription>
         </DialogHeader>
         <Textarea
           rows={10}
           className="font-mono text-sm"
-          placeholder={'張三,A\n李四,B\n王五,'}
+          placeholder={'小熊 9\n山哥 9\n小傑,7'}
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
