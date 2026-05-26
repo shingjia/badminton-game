@@ -67,3 +67,8 @@ export const ChangePassword = z.object({
   oldPassword: z.string().min(1),
   newPassword: z.string().min(6).max(100),
 });
+
+export const UpdateSiteConfig = z.object({
+  siteName: z.string().trim().min(1).max(30),
+  siteIcon: z.string().trim().min(1).max(4),
+});
