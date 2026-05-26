@@ -82,6 +82,10 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 # Entrypoint: 啟動前跑 prisma migrate deploy，然後 exec CMD
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 
+# Upload mount point — named volume 在第一次掛上時會繼承這裡的權限，
+# 之後 nextjs (uid 1001) 才寫得進來。
+RUN mkdir -p /app/data/uploads
+
 # 設定目錄擁有者
 RUN chown -R nextjs:nodejs /app && chmod +x /app/docker-entrypoint.sh
 

@@ -44,5 +44,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# uploaded admin icons (volume-mounted at runtime)
-/uploads/
+# uploaded admin icons live in the named docker volume "uploads_data"
