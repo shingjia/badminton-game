@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/toaster";
 import { SiteHeader } from "@/components/site-header";
+import { SiteHeaderInner } from "@/components/site-header-inner";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -30,7 +31,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col bg-background text-foreground antialiased`}
       >
-        <SiteHeader />
+        <SiteHeader>
+          <SiteHeaderInner />
+        </SiteHeader>
         <main className="flex-1">{children}</main>
         <Toaster />
       </body>
