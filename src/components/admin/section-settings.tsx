@@ -12,7 +12,7 @@ import type { Court, Tournament } from '@prisma/client';
 export function SectionSettings({ tournament }: { tournament: Tournament }) {
   const { toast } = useToast();
   const [name, setName] = useState(tournament.name);
-  const [teamsPerGroup, setTeamsPerGroup] = useState(tournament.teamsPerGroup);
+  const [groupCount, setGroupCount] = useState(tournament.groupCount);
   const [pointsPerGame, setPointsPerGame] = useState(tournament.pointsPerGame);
   const [courts, setCourts] = useState<Court[]>([]);
   const [newCourt, setNewCourt] = useState('');
@@ -27,7 +27,7 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
     try {
       await api(`/api/tournaments/${tournament.id}`, {
         method: 'PATCH',
-        body: { name, teamsPerGroup, pointsPerGame },
+        body: { name, groupCount, pointsPerGame },
       });
       toast({ title: '已儲存' });
     } catch {
@@ -60,14 +60,14 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
             <Input id="s-name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="s-tpg">每組隊伍數</Label>
+            <Label htmlFor="s-gc">組數</Label>
             <Input
-              id="s-tpg"
+              id="s-gc"
               type="number"
-              min={2}
-              max={16}
-              value={teamsPerGroup}
-              onChange={(e) => setTeamsPerGroup(Number(e.target.value))}
+              min={1}
+              max={26}
+              value={groupCount}
+              onChange={(e) => setGroupCount(Number(e.target.value))}
               disabled={lockedSettings}
             />
           </div>
