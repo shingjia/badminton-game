@@ -1,11 +1,12 @@
-import type { Tournament, Team, Group, Match } from '@prisma/client';
+import type { Tournament, Player, Group, Pair, Match } from '@prisma/client';
 
 export type ServerEvent =
-  | { type: 'team.added'; tournamentId: string; team: Team }
-  | { type: 'team.updated'; tournamentId: string; team: Team }
-  | { type: 'team.deleted'; tournamentId: string; teamId: string }
+  | { type: 'player.added'; tournamentId: string; player: Player }
+  | { type: 'player.updated'; tournamentId: string; player: Player }
+  | { type: 'player.deleted'; tournamentId: string; playerId: string }
   | { type: 'groups.generated'; tournamentId: string; groups: Group[] }
-  | { type: 'groups.locked'; tournamentId: string }
+  | { type: 'pairs.shuffled'; tournamentId: string; groupId: string; pairs: Pair[] }
+  | { type: 'pairing.locked'; tournamentId: string; groupId: string }
   | { type: 'match.generated'; tournamentId: string; matches: Match[] }
   | { type: 'match.scored'; tournamentId: string; match: Match }
   | { type: 'tournament.updated'; tournamentId: string; tournament: Tournament }
