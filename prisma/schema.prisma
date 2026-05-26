@@ -25,6 +25,8 @@ model Tournament {
   status        TournamentStatus @default(draft)
   groupCount    Int              @default(4)
   pointsPerGame Int              @default(21)
+  bannerIcon    String           @default("🏸")
+  bannerColor   String           @default("red")
   createdAt     DateTime         @default(now())
   finishedAt    DateTime?
 
@@ -123,4 +125,10 @@ model Match {
   @@index([tournamentId])
   @@index([groupId])
   @@index([courtId])
+}
+
+model AdminConfig {
+  id           Int      @id @default(0)
+  passwordHash String
+  updatedAt    DateTime @updatedAt
 }
