@@ -27,6 +27,7 @@ model Tournament {
   pointsPerGame Int              @default(21)
   bannerIcon    String           @default("🏸")
   bannerColor   String           @default("red")
+  bannerIconImage String?
   createdAt     DateTime         @default(now())
   finishedAt    DateTime?
 
@@ -130,7 +131,8 @@ model Match {
 model AdminConfig {
   id           Int      @id @default(0)
   passwordHash String
-  siteName     String   @default("羽球友誼賽")
-  siteIcon     String   @default("🏸")
-  updatedAt    DateTime @updatedAt
+  siteName       String   @default("羽球友誼賽")
+  siteIcon       String   @default("🏸")
+  siteIconImage  String?
+  updatedAt      DateTime @updatedAt
 }
