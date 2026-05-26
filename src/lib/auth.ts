@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
 export const COOKIE_NAME = 'admin_session';
 export const DEFAULT_MAX_AGE = 8 * 3600; // 8 hours
@@ -42,4 +42,31 @@ export function passwordMatches(input: string, expected: string): boolean {
   const b = Buffer.from(expected);
   if (a.length !== b.length) return false;
   return timingSafeEqual(a, b);
+}
+
+/**
+ * scrypt-based password hashing. Format: "scrypt$N$r$p$saltHex$hashHex"
+ */
+export function hashPassword(plain: string): string {
+  const salt = randomBytes(16);
+  const hash = scryptSync(plain, salt, 64);
+  return `scrypt$16384$8$1$${salt.toString('hex')}$${hash.toString('hex')}`;
+}
+
+export function verifyPassword(plain: string, stored: string): boolean {
+  const parts = stored.split('$');
+  if (parts.length !== 6 || parts[0] !== 'scrypt') return false;
+  const saltHex = parts[4];
+  const hashHex = parts[5];
+  if (!saltHex || !hashHex) return false;
+  const salt = Buffer.from(saltHex, 'hex');
+  const expected = Buffer.from(hashHex, 'hex');
+  let actual: Buffer;
+  try {
+    actual = scryptSync(plain, salt, expected.length);
+  } catch {
+    return false;
+  }
+  if (actual.length !== expected.length) return false;
+  return timingSafeEqual(actual, expected);
 }
