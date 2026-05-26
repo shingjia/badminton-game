@@ -47,3 +47,15 @@ export const UpdateMatchScore = z.object({
   scoreA: z.number().int().min(0).max(30),
   scoreB: z.number().int().min(0).max(30),
 });
+
+export const BulkCreatePlayers = z.object({
+  players: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(50),
+        level: z.string().trim().min(1).max(10).optional().nullable(),
+      }),
+    )
+    .min(1)
+    .max(500),
+});
