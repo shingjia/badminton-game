@@ -32,24 +32,51 @@ export function TournamentBanner({ tournament }: { tournament: Tournament }) {
   const ring = ICON_RING[tournament.bannerColor] ?? ICON_RING.red;
   const sub = SUBTITLE_COLOR[tournament.bannerColor] ?? SUBTITLE_COLOR.red;
   return (
-    <header className={`sticky top-0 z-40 ${bg} text-white shadow`}>
-      <div className="container mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+    <header className={`sticky top-0 z-40 ${bg} overflow-hidden text-white shadow`}>
+      {/* 細斜紋紋理 */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-10"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(135deg, transparent 0 10px, rgba(255,255,255,0.85) 10px 11px)',
+        }}
+      />
+      {/* 右上角柔光暈 */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-25 blur-3xl"
+        style={{
+          background: 'radial-gradient(circle, rgba(255,255,255,0.65), rgba(255,255,255,0))',
+        }}
+      />
+      {/* 左下角微弱暗角，讓文字更跳 */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-32 -bottom-32 h-72 w-72 rounded-full opacity-30 blur-3xl"
+        style={{
+          background: 'radial-gradient(circle, rgba(0,0,0,0.45), rgba(0,0,0,0))',
+        }}
+      />
+      <div className="relative container mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
         {tournament.bannerIconImage ? (
           <img
             src={`/api/uploads/${tournament.bannerIconImage}`}
             alt=""
-            className="h-14 w-14 shrink-0 rounded-full border-2 border-amber-300 bg-white object-cover"
+            className="h-14 w-14 shrink-0 rounded-full border-2 border-amber-300 bg-white object-cover shadow-md"
           />
         ) : (
-          <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-3xl ${ring}`}>
+          <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-3xl shadow-md ${ring}`}>
             {tournament.bannerIcon}
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold tracking-wider text-amber-300">
+          <div className="text-xs font-semibold tracking-wider text-amber-300 drop-shadow-sm">
             FRIENDLY MATCH ★ 友誼賽
           </div>
-          <div className="truncate text-xl font-bold leading-tight">{tournament.name}</div>
+          <div className="truncate text-xl font-bold leading-tight drop-shadow-sm">
+            {tournament.name}
+          </div>
           <div className={`text-xs ${sub}`}>雙打分組循環賽</div>
         </div>
       </div>
