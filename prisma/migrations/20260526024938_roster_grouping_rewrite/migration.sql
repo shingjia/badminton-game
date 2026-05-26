@@ -13,6 +13,12 @@ ALTER TABLE "Match" DROP CONSTRAINT "Match_teamAId_fkey";
 -- DropForeignKey
 ALTER TABLE "Match" DROP CONSTRAINT "Match_teamBId_fkey";
 
+-- Clear rows so the upcoming NOT NULL ADD COLUMN statements succeed.
+-- Old Team-model data is disposable (dev/test); the new Player/Pair model
+-- requires Match.pairAId/pairBId NOT NULL and Group.levelCode NOT NULL.
+DELETE FROM "Match";
+DELETE FROM "Group";
+
 -- AlterTable
 ALTER TABLE "Tournament" DROP COLUMN "teamsPerGroup",
 ADD COLUMN     "groupCount" INTEGER NOT NULL DEFAULT 4;
