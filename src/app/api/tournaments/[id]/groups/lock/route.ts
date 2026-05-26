@@ -14,25 +14,24 @@ export async function POST(req: NextRequest, { params }: Params) {
   const statusErr = ensureStatus(tournament.status, ['grouping']);
   if (statusErr) return statusErr;
 
-  // every team must belong to a group
-  const orphan = await prisma.team.count({
+  // every player must belong to a group
+  const orphan = await prisma.player.count({
     where: { tournamentId: params.id, groupId: null },
   });
-  if (orphan > 0) return conflict('teams_not_grouped');
+  if (orphan > 0) return conflict('players_not_grouped');
 
   const groups = await prisma.group.findMany({
     where: { tournamentId: params.id },
-    include: { teams: true },
+    include: { players: true },
   });
   for (const g of groups) {
-    if (g.teams.length < 2) return conflict('group_too_small');
+    if (g.players.length < 2) return conflict('group_too_small');
   }
 
   const updated = await prisma.tournament.update({
     where: { id: params.id },
     data: { status: 'in_progress' },
   });
-  emitToTournament(params.id, 'groups.locked', { tournamentId: params.id });
   emitToTournament(params.id, 'tournament.updated', { tournamentId: params.id, tournament: updated });
   return ok(updated);
 }

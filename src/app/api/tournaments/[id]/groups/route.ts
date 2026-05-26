@@ -8,7 +8,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const groups = await prisma.group.findMany({
     where: { tournamentId: params.id },
     orderBy: { displayOrder: 'asc' },
-    include: { teams: { orderBy: { name: 'asc' } } },
+    include: {
+      players: { orderBy: { name: 'asc' } },
+      pairs: { orderBy: { displayOrder: 'asc' } },
+    },
   });
   return ok(groups);
 }
