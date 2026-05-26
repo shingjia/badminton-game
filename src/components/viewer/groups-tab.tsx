@@ -3,17 +3,17 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { api } from '@/lib/api-client';
-import type { Group, Player } from '@prisma/client';
+import type { Group, Player, Pair } from '@prisma/client';
 
-type GroupWithPlayers = Group & { players: Player[] };
+type GroupWithData = Group & { players: Player[]; pairs: Pair[] };
 
 export function GroupsTab({ tournamentId, revision }: { tournamentId: string; revision: number }) {
-  const [groups, setGroups] = useState<GroupWithPlayers[]>([]);
+  const [groups, setGroups] = useState<GroupWithData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    api<GroupWithPlayers[]>(`/api/tournaments/${tournamentId}/groups`)
+    api<GroupWithData[]>(`/api/tournaments/${tournamentId}/groups`)
       .then(setGroups)
       .finally(() => setLoading(false));
   }, [tournamentId, revision]);
@@ -23,22 +23,52 @@ export function GroupsTab({ tournamentId, revision }: { tournamentId: string; re
 
   return (
     <div className="grid gap-4 py-4 md:grid-cols-2 lg:grid-cols-3">
-      {groups.map((g) => (
-        <Card key={g.id} className="p-4">
-          <div className="mb-2 text-lg font-semibold">
-            {g.name} 組
-            <span className="ml-2 text-sm text-muted-foreground">({g.levelCode})</span>
-          </div>
-          <ul className="space-y-1 text-sm">
-            {g.players.map((p) => (
-              <li key={p.id} className="flex justify-between">
-                <span>{p.name}</span>
-                {p.level && <span className="text-muted-foreground">{p.level}</span>}
-              </li>
-            ))}
-          </ul>
-        </Card>
-      ))}
+      {groups
+        .slice()
+        .sort((a, b) => a.displayOrder - b.displayOrder)
+        .map((g) => {
+          const sortedPairs = g.pairs
+            .slice()
+            .sort((a, b) => a.displayOrder - b.displayOrder);
+          return (
+            <Card key={g.id} className="overflow-hidden">
+              <div className="bg-amber-400 px-3 py-1.5 text-sm font-bold text-amber-950">
+                分組 {g.displayOrder}
+              </div>
+              <div className="space-y-3 p-3">
+                <div className="text-sm">
+                  <span className="font-medium text-muted-foreground">成員：</span>
+                  {g.players.map((p, i) => (
+                    <span key={p.id}>
+                      {i > 0 && '、'}
+                      {p.name}
+                      {p.level && (
+                        <span className="text-muted-foreground">({p.level})</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+                {sortedPairs.length > 0 && (
+                  <div className="space-y-1 border-t pt-2">
+                    {sortedPairs.map((pair, i) => {
+                      const p1 = g.players.find((x) => x.id === pair.player1Id);
+                      const p2 = g.players.find((x) => x.id === pair.player2Id);
+                      return (
+                        <div
+                          key={pair.id}
+                          className="rounded bg-amber-50 px-2 py-1 text-sm"
+                        >
+                          <span className="font-medium text-amber-900">配對 {i + 1}：</span>
+                          {p1?.name ?? '?'} & {p2?.name ?? '?'}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </Card>
+          );
+        })}
     </div>
   );
 }
