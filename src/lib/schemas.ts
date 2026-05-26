@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const TournamentStatusEnum = z.enum(['draft', 'grouping', 'in_progress', 'finished']);
 
+export const BannerColor = z.enum(['red', 'blue', 'green', 'purple', 'orange', 'slate']);
+
 export const CreateTournament = z.object({
   name: z.string().trim().min(1).max(100),
   groupCount: z.number().int().min(1).max(26).optional(),
@@ -13,11 +15,13 @@ export const UpdateTournament = z.object({
   status: TournamentStatusEnum.optional(),
   groupCount: z.number().int().min(1).max(26).optional(),
   pointsPerGame: z.number().int().min(11).max(31).optional(),
+  bannerIcon: z.string().trim().min(1).max(4).optional(),
+  bannerColor: BannerColor.optional(),
 });
 
 export const CreatePlayer = z.object({
   name: z.string().trim().min(1).max(50),
-  level: z.string().trim().min(1).max(10).optional(),
+  level: z.string().trim().min(1).max(10),
 });
 
 export const UpdatePlayer = z.object({
@@ -27,7 +31,6 @@ export const UpdatePlayer = z.object({
 });
 
 // Used in POST /api/tournaments/:id/groups/generate
-// Each entry maps a levelCode label to an ordered list of playerIds
 export const AssignGroups = z.object({
   groups: z
     .array(
@@ -53,9 +56,14 @@ export const BulkCreatePlayers = z.object({
     .array(
       z.object({
         name: z.string().trim().min(1).max(50),
-        level: z.string().trim().min(1).max(10).optional().nullable(),
+        level: z.string().trim().min(1).max(10),
       }),
     )
     .min(1)
     .max(500),
+});
+
+export const ChangePassword = z.object({
+  oldPassword: z.string().min(1),
+  newPassword: z.string().min(6).max(100),
 });
