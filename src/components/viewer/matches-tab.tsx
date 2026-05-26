@@ -46,32 +46,42 @@ export function MatchesTab({ tournamentId, revision }: { tournamentId: string; r
         <div key={gname}>
           <div className="mb-2 text-lg font-semibold">{gname} 組</div>
           <div className="grid gap-2 md:grid-cols-2">
-            {ms.map((m) => (
-              <Card key={m.id} className="flex items-center justify-between p-3">
-                <div className="text-sm">
-                  <span className="text-muted-foreground">#{m.matchOrder}</span>{' '}
-                  <span className="font-medium">{pairLabel(m.pairA)}</span>
-                  <span className="mx-2">vs</span>
-                  <span className="font-medium">{pairLabel(m.pairB)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {m.court && (
-                    <Badge variant="outline" className="text-xs">
-                      {m.court.name}
-                    </Badge>
-                  )}
-                  {m.status === 'completed' ? (
-                    <span className="text-sm font-mono">
-                      {m.scoreA} - {m.scoreB}
-                    </span>
-                  ) : (
-                    <Badge variant="secondary" className="text-xs">
-                      未開賽
-                    </Badge>
-                  )}
-                </div>
-              </Card>
-            ))}
+            {ms.map((m) => {
+              const done = m.status === 'completed';
+              return (
+                <Card
+                  key={m.id}
+                  className={`flex items-center justify-between p-3 ${
+                    done
+                      ? 'border-emerald-300 bg-emerald-50'
+                      : ''
+                  }`}
+                >
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">#{m.matchOrder}</span>{' '}
+                    <span className="font-medium">{pairLabel(m.pairA)}</span>
+                    <span className="mx-2">vs</span>
+                    <span className="font-medium">{pairLabel(m.pairB)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {m.court && (
+                      <Badge variant="outline" className="text-xs">
+                        {m.court.name}
+                      </Badge>
+                    )}
+                    {done ? (
+                      <span className="rounded bg-emerald-600 px-2 py-0.5 font-mono text-sm font-bold text-white">
+                        {m.scoreA} - {m.scoreB}
+                      </span>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs">
+                        未開賽
+                      </Badge>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         </div>
       ))}
