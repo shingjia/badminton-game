@@ -32,7 +32,7 @@ export function SectionPlayers({
     try {
       await api(`/api/tournaments/${tournament.id}/players`, {
         method: 'POST',
-        body: { name: name.trim(), level: level.trim() || undefined },
+        body: { name: name.trim(), level: level.trim() },
       });
       setName('');
       setLevel('');
@@ -69,7 +69,7 @@ export function SectionPlayers({
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="p-level">等級</Label>
+                <Label htmlFor="p-level">等級 *</Label>
                 <Input
                   id="p-level"
                   value={level}
@@ -78,7 +78,7 @@ export function SectionPlayers({
                 />
               </div>
               <div className="flex items-end">
-                <Button onClick={add} disabled={!name.trim()} className="w-full">
+                <Button onClick={add} disabled={!name.trim() || !level.trim()} className="w-full">
                   新增
                 </Button>
               </div>
