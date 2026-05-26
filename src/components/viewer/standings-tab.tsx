@@ -10,9 +10,11 @@ type Row = {
   pair_id: string;
   group_id: string;
   wins: number;
+  losses: number;
   played: number;
   point_diff: number;
   points_for: number;
+  points_against: number;
   rank: number;
 };
 type GroupBlock = { groupId: string; standings: Row[] };
@@ -62,9 +64,11 @@ export function StandingsTab({ tournamentId, revision }: { tournamentId: string;
                 <TableHead className="w-12">#</TableHead>
                 <TableHead>配對</TableHead>
                 <TableHead className="text-right">勝</TableHead>
+                <TableHead className="text-right">負</TableHead>
                 <TableHead className="text-right">場次</TableHead>
                 <TableHead className="text-right">得分差</TableHead>
                 <TableHead className="text-right">總得分</TableHead>
+                <TableHead className="text-right">總失分</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -73,9 +77,11 @@ export function StandingsTab({ tournamentId, revision }: { tournamentId: string;
                   <TableCell className="font-medium">{r.rank}</TableCell>
                   <TableCell>{pairLabel(r.pair_id)}</TableCell>
                   <TableCell className="text-right">{r.wins}</TableCell>
+                  <TableCell className="text-right">{r.losses}</TableCell>
                   <TableCell className="text-right">{r.played}</TableCell>
                   <TableCell className="text-right">{r.point_diff}</TableCell>
                   <TableCell className="text-right">{r.points_for}</TableCell>
+                  <TableCell className="text-right">{r.points_against}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
