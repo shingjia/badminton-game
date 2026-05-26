@@ -17,6 +17,7 @@ export const UpdateTournament = z.object({
   pointsPerGame: z.number().int().min(11).max(31).optional(),
   bannerIcon: z.string().trim().min(1).max(4).optional(),
   bannerColor: BannerColor.optional(),
+  bannerIconImage: z.string().nullable().optional(),
 });
 
 export const CreatePlayer = z.object({
@@ -71,4 +72,5 @@ export const ChangePassword = z.object({
 export const UpdateSiteConfig = z.object({
   siteName: z.string().trim().min(1).max(30),
   siteIcon: z.string().trim().min(1).max(4),
+  siteIconImage: z.string().nullable().optional(),
 });
