@@ -20,8 +20,11 @@ export async function PATCH(req: NextRequest) {
     data: {
       siteName: parsed.data.siteName,
       siteIcon: parsed.data.siteIcon,
+      ...(parsed.data.siteIconImage !== undefined && {
+        siteIconImage: parsed.data.siteIconImage,
+      }),
     },
-    select: { siteName: true, siteIcon: true },
+    select: { siteName: true, siteIcon: true, siteIconImage: true },
   });
 
   return ok(updated);
