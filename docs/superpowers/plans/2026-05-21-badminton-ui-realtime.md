@@ -1,3 +1,5 @@
+> WARNING: Task 9-23 已由 `docs/superpowers/plans/2026-05-26-roster-grouping-rewrite.md` 取代。本檔僅保留 Task 1-8（Socket infra、custom server、shadcn、useSocket hook、emitToTournament、socket smoke test 基礎設施）作為前置參考。
+
 # 羽球友誼賽 — Plan 2：UI + Realtime Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
