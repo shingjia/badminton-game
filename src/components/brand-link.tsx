@@ -11,7 +11,15 @@ export function BrandLink({
   className?: string;
 }) {
   const pathname = usePathname();
-  const href = pathname.startsWith('/admin') ? '/admin' : '/';
+  // Login page: brand should escape to the public list (no auth required).
+  // Other /admin/* paths: brand goes to admin list.
+  // Everywhere else: brand goes to public list.
+  const href =
+    pathname === '/admin/login'
+      ? '/'
+      : pathname.startsWith('/admin')
+        ? '/admin'
+        : '/';
   return (
     <Link href={href} className={className}>
       {children}
