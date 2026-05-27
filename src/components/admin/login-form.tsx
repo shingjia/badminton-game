@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 export function LoginForm({ redirect }: { redirect: string }) {
   const router = useRouter();
   const { toast } = useToast();
+  const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -19,11 +20,14 @@ export function LoginForm({ redirect }: { redirect: string }) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api('/api/admin/login', { method: 'POST', body: { password } });
+      await api('/api/admin/login', {
+        method: 'POST',
+        body: { username: username.trim(), password },
+      });
       router.push(redirect);
       router.refresh();
     } catch (err) {
-      const msg = err instanceof ApiError && err.status === 401 ? '密碼錯誤' : '登入失敗';
+      const msg = err instanceof ApiError && err.status === 401 ? '帳號或密碼錯誤' : '登入失敗';
       toast({ title: msg, variant: 'destructive' });
     } finally {
       setSubmitting(false);
@@ -34,6 +38,16 @@ export function LoginForm({ redirect }: { redirect: string }) {
     <Card className="w-full p-6">
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
+          <Label htmlFor="username">帳號</Label>
+          <Input
+            id="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            autoComplete="username"
+          />
+        </div>
+        <div className="space-y-2">
           <Label htmlFor="password">密碼</Label>
           <Input
             id="password"
@@ -41,7 +55,7 @@ export function LoginForm({ redirect }: { redirect: string }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            autoFocus
+            autoComplete="current-password"
           />
         </div>
         <Button type="submit" className="w-full" disabled={submitting}>
