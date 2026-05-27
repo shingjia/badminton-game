@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import {
   COOKIE_NAME,
@@ -9,12 +8,11 @@ import {
   signSession,
   verifyPassword,
 } from '@/lib/auth';
-
-const Body = z.object({ password: z.string().min(1) });
+import { AdminLogin } from '@/lib/schemas';
 
 export async function POST(req: NextRequest) {
   const json = await req.json().catch(() => null);
-  const parsed = Body.safeParse(json);
+  const parsed = AdminLogin.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
   }
@@ -24,30 +22,53 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'server_not_configured' }, { status: 500 });
   }
 
-  const config = await prisma.adminConfig.findUnique({ where: { id: 0 } });
+  const { username, password } = parsed.data;
 
-  let ok = false;
-  if (config) {
-    ok = verifyPassword(parsed.data.password, config.passwordHash);
-  } else {
-    const envPw = process.env.ADMIN_PASSWORD;
-    if (!envPw) {
-      return NextResponse.json({ error: 'server_not_configured' }, { status: 500 });
+  // Look up by username
+  const user = await prisma.adminUser.findUnique({ where: { username } });
+
+  let authedUserId: string | null = null;
+
+  if (user) {
+    if (verifyPassword(password, user.passwordHash)) {
+      authedUserId = user.id;
     }
-    ok = passwordMatches(parsed.data.password, envPw);
-    if (ok) {
-      await prisma.adminConfig.create({
-        data: { id: 0, passwordHash: hashPassword(parsed.data.password) },
-      });
+  } else {
+    // No matching user. Two bootstrap paths, only for username 'admin':
+    // 1. AdminConfig has a hash (post-Phase-1 install) — verify against it
+    // 2. AdminConfig empty — verify against env ADMIN_PASSWORD
+    // On success, create the first AdminUser as owner.
+    if (username === 'admin') {
+      const adminCount = await prisma.adminUser.count();
+      if (adminCount === 0) {
+        const config = await prisma.adminConfig.findUnique({ where: { id: 0 } });
+        let bootstrapOk = false;
+        if (config) {
+          bootstrapOk = verifyPassword(password, config.passwordHash);
+        } else {
+          const envPw = process.env.ADMIN_PASSWORD;
+          if (envPw) bootstrapOk = passwordMatches(password, envPw);
+        }
+        if (bootstrapOk) {
+          const created = await prisma.adminUser.create({
+            data: {
+              username: 'admin',
+              passwordHash: hashPassword(password),
+              isOwner: true,
+            },
+          });
+          authedUserId = created.id;
+        }
+      }
     }
   }
 
-  if (!ok) {
+  if (!authedUserId) {
     await new Promise((r) => setTimeout(r, 1000));
     return NextResponse.json({ error: 'invalid_credentials' }, { status: 401 });
   }
 
-  const token = signSession(secret);
+  const token = signSession(secret, authedUserId);
   const res = NextResponse.json({ ok: true });
   res.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,
