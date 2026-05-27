@@ -27,6 +27,8 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
   const [bannerIcon, setBannerIcon] = useState(tournament.bannerIcon);
   const [bannerColor, setBannerColor] = useState(tournament.bannerColor);
   const [bannerIconImage, setBannerIconImage] = useState<string | null>(tournament.bannerIconImage);
+  const [bannerTagline, setBannerTagline] = useState(tournament.bannerTagline);
+  const [bannerSubtitle, setBannerSubtitle] = useState(tournament.bannerSubtitle);
   const [courts, setCourts] = useState<Court[]>([]);
   const [newCourt, setNewCourt] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -41,7 +43,16 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
     try {
       await api(`/api/tournaments/${tournament.id}`, {
         method: 'PATCH',
-        body: { name, groupCount, pointsPerGame, bannerIcon, bannerColor, bannerIconImage },
+        body: {
+          name,
+          groupCount,
+          pointsPerGame,
+          bannerIcon,
+          bannerColor,
+          bannerIconImage,
+          bannerTagline,
+          bannerSubtitle,
+        },
       });
       toast({ title: '已儲存' });
     } catch {
@@ -150,6 +161,29 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
                 />
               ))}
             </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="s-tagline">主視覺上方標語（留空則不顯示）</Label>
+            <Input
+              id="s-tagline"
+              value={bannerTagline}
+              onChange={(e) => setBannerTagline(e.target.value)}
+              maxLength={80}
+              placeholder="FRIENDLY MATCH ★ 友誼賽"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="s-subtitle">主視覺副標（留空則不顯示）</Label>
+            <Input
+              id="s-subtitle"
+              value={bannerSubtitle}
+              onChange={(e) => setBannerSubtitle(e.target.value)}
+              maxLength={80}
+              placeholder="雙打分組循環賽"
+            />
           </div>
         </div>
 

@@ -81,13 +81,17 @@ export function TournamentBanner({ tournament }: { tournament: Tournament }) {
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold tracking-wider text-amber-300 drop-shadow-sm">
-            FRIENDLY MATCH ★ 友誼賽
-          </div>
+          {tournament.bannerTagline.trim() !== '' && (
+            <div className="text-xs font-semibold tracking-wider text-amber-300 drop-shadow-sm">
+              {tournament.bannerTagline}
+            </div>
+          )}
           <div className="truncate text-xl font-bold leading-tight drop-shadow-sm">
             {tournament.name}
           </div>
-          <div className={`text-xs ${sub}`}>雙打分組循環賽</div>
+          {tournament.bannerSubtitle.trim() !== '' && (
+            <div className={`text-xs ${sub}`}>{tournament.bannerSubtitle}</div>
+          )}
         </div>
         </div>
       </div>

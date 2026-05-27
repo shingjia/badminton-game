@@ -18,6 +18,8 @@ export const UpdateTournament = z.object({
   bannerIcon: z.string().trim().min(1).max(4).optional(),
   bannerColor: BannerColor.optional(),
   bannerIconImage: z.string().nullable().optional(),
+  bannerTagline: z.string().trim().max(80).optional(),
+  bannerSubtitle: z.string().trim().max(80).optional(),
 });
 
 export const CreatePlayer = z.object({

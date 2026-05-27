@@ -28,6 +28,8 @@ model Tournament {
   bannerIcon    String           @default("🏸")
   bannerColor   String           @default("red")
   bannerIconImage String?
+  bannerTagline   String           @default("FRIENDLY MATCH ★ 友誼賽")
+  bannerSubtitle  String           @default("雙打分組循環賽")
   createdAt     DateTime         @default(now())
   finishedAt    DateTime?
 
