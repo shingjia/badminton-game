@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Settings, User } from 'lucide-react';
+import { User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -30,11 +30,6 @@ export function HeaderAction() {
   if (pathname.startsWith('/admin')) {
     return (
       <div className="flex items-center gap-1">
-        <Link href="/admin/settings" aria-label="設定">
-          <Button variant="ghost" size="icon">
-            <Settings className="h-4 w-4" />
-          </Button>
-        </Link>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label="使用者選單">
