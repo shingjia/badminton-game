@@ -96,7 +96,7 @@ export function MatchGraph({ matches }: { matches: MatchFull[] }) {
   return (
     <svg
       viewBox="0 0 500 500"
-      className="mx-auto w-full max-w-md"
+      className="mx-auto w-full max-w-lg"
       role="img"
       aria-label="循環賽對戰圖"
     >
@@ -177,12 +177,12 @@ export function MatchGraph({ matches }: { matches: MatchFull[] }) {
       })}
 
       {vertices.map((v, i) => {
-        const labelR = r + 35;
+        const labelR = r + 38;
         const lx = cx + labelR * Math.cos(v.angle);
         const ly = cy + labelR * Math.sin(v.angle);
         const [name1, name2] = pairNames(v.pair);
-        const pillW = 110;
-        const pillH = 44;
+        const pillW = 120;
+        const pillH = 50;
         return (
           <g key={i}>
             <circle
@@ -198,19 +198,19 @@ export function MatchGraph({ matches }: { matches: MatchFull[] }) {
               y={ly - pillH / 2}
               width={pillW}
               height={pillH}
-              rx={8}
+              rx={9}
               fill="#1f2937"
             />
             <text
               textAnchor="middle"
-              fontSize="14"
+              fontSize="17"
               fontWeight={700}
               fill="white"
             >
-              <tspan x={lx} y={ly - 1}>
+              <tspan x={lx} y={ly - 2}>
                 {name1}
               </tspan>
-              <tspan x={lx} dy={17}>
+              <tspan x={lx} dy={20}>
                 {name2}
               </tspan>
             </text>
