@@ -72,25 +72,27 @@ export function StandingsTab({ tournamentId, revision }: { tournamentId: string;
               </TableRow>
             </TableHeader>
             <TableBody>
-              {b.standings.map((r) => (
+              {b.standings.map((r) => {
+                const hasMedal = r.played > 0 && (r.rank === 1 || r.rank === 2 || r.rank === 3);
+                return (
                 <TableRow
                   key={r.pair_id}
                   className={
-                    r.rank === 1
+                    hasMedal && r.rank === 1
                       ? 'bg-amber-50'
-                      : r.rank === 2
+                      : hasMedal && r.rank === 2
                         ? 'bg-slate-50'
-                        : r.rank === 3
+                        : hasMedal && r.rank === 3
                           ? 'bg-orange-50'
                           : ''
                   }
                 >
                   <TableCell className="font-medium whitespace-nowrap">
-                    {r.rank === 1 ? (
+                    {hasMedal && r.rank === 1 ? (
                       <span className="font-bold text-amber-700">🥇 冠軍</span>
-                    ) : r.rank === 2 ? (
+                    ) : hasMedal && r.rank === 2 ? (
                       <span className="font-bold text-slate-700">🥈 亞軍</span>
-                    ) : r.rank === 3 ? (
+                    ) : hasMedal && r.rank === 3 ? (
                       <span className="font-bold text-orange-700">🥉 季軍</span>
                     ) : (
                       <span className="text-muted-foreground">{r.rank}</span>
@@ -104,7 +106,8 @@ export function StandingsTab({ tournamentId, revision }: { tournamentId: string;
                   <TableCell className="text-right">{r.points_for}</TableCell>
                   <TableCell className="text-right">{r.points_against}</TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </Card>
