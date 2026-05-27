@@ -6,16 +6,6 @@ import { emitToTournament } from '@/lib/socket-server';
 
 type Params = { params: { id: string } };
 
-function validBadmintonScore(a: number, b: number, target: number): boolean {
-  // 21 points game, win by 2, max 30
-  const max = Math.max(a, b);
-  const min = Math.min(a, b);
-  if (max < target) return false;          // game not ended
-  if (max === 30) return true;             // hard cap reached
-  if (max > 30) return false;              // impossible
-  return max - min >= 2;                   // need 2-point lead
-}
-
 export async function PATCH(req: NextRequest, { params }: Params) {
   const unauth = requireAdmin(req);
   if (unauth) return unauth;
@@ -33,32 +23,45 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   const target = match.tournament.pointsPerGame;
-  if (!validBadmintonScore(parsed.data.scoreA, parsed.data.scoreB, target)) {
-    return conflict('invalid_score');
-  }
+  const maxScore = Math.max(parsed.data.scoreA, parsed.data.scoreB);
+  // 達標即算完賽；分數歸零或未達標皆為「進行中」(DB status: pending)。
+  const newStatus = maxScore >= target ? 'completed' : 'pending';
 
   const updated = await prisma.match.update({
     where: { id: params.id },
     data: {
       scoreA: parsed.data.scoreA,
       scoreB: parsed.data.scoreB,
-      status: 'completed',
-      finishedAt: new Date(),
+      status: newStatus,
+      finishedAt: newStatus === 'completed' ? new Date() : null,
     },
   });
 
-  // If all matches completed, transition tournament to finished
-  const pending = await prisma.match.count({
+  emitToTournament(updated.tournamentId, 'match.scored', {
+    tournamentId: updated.tournamentId,
+    match: updated,
+  });
+
+  // Roll up tournament status from the per-match states.
+  const pendingCount = await prisma.match.count({
     where: { tournamentId: match.tournamentId, status: 'pending' },
   });
-  emitToTournament(updated.tournamentId, 'match.scored', { tournamentId: updated.tournamentId, match: updated });
-  if (pending === 0) {
+
+  if (pendingCount === 0 && match.tournament.status !== 'finished') {
     await prisma.tournament.update({
       where: { id: match.tournamentId },
       data: { status: 'finished', finishedAt: new Date() },
     });
     const final = await prisma.tournament.findUnique({ where: { id: match.tournamentId } });
     if (final) emitToTournament(final.id, 'tournament.updated', { tournamentId: final.id, tournament: final });
+  } else if (pendingCount > 0 && match.tournament.status === 'finished') {
+    // A previously completed match got reverted → tournament back to in_progress
+    await prisma.tournament.update({
+      where: { id: match.tournamentId },
+      data: { status: 'in_progress', finishedAt: null },
+    });
+    const reopened = await prisma.tournament.findUnique({ where: { id: match.tournamentId } });
+    if (reopened) emitToTournament(reopened.id, 'tournament.updated', { tournamentId: reopened.id, tournament: reopened });
   }
 
   return ok(updated);
