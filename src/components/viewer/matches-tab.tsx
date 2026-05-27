@@ -20,7 +20,7 @@ function pairLabel(p: PairWithPlayers) {
   return `${p.player1.name} / ${p.player2.name}`;
 }
 
-type ViewMode = 'graph' | 'list';
+type ViewMode = 'graph' | 'group' | 'court';
 
 export function MatchesTab({ tournamentId, revision }: { tournamentId: string; revision: number }) {
   const [matches, setMatches] = useState<MatchFull[]>([]);
@@ -37,6 +37,7 @@ export function MatchesTab({ tournamentId, revision }: { tournamentId: string; r
   if (loading && matches.length === 0) return <p className="py-6 text-muted-foreground">載入中…</p>;
   if (matches.length === 0) return <p className="py-6 text-muted-foreground">尚無賽程</p>;
 
+  // Group by group
   const byGroup = new Map<string, MatchFull[]>();
   for (const m of matches) {
     const k = m.group.name;
@@ -45,9 +46,30 @@ export function MatchesTab({ tournamentId, revision }: { tournamentId: string; r
     byGroup.set(k, arr);
   }
 
+  // Group by court
+  type CourtBlock = { key: string; courtName: string; courtOrder: number; matches: MatchFull[] };
+  const byCourtMap = new Map<string, CourtBlock>();
+  for (const m of matches) {
+    const key = m.court?.id ?? '__none__';
+    const block = byCourtMap.get(key) ?? {
+      key,
+      courtName: m.court?.name ?? '未排場地',
+      courtOrder: m.court?.displayOrder ?? 9999,
+      matches: [],
+    };
+    block.matches.push(m);
+    byCourtMap.set(key, block);
+  }
+  const byCourt = Array.from(byCourtMap.values()).sort((a, b) => a.courtOrder - b.courtOrder);
+  for (const c of byCourt) {
+    c.matches.sort((a, b) =>
+      a.roundNumber !== b.roundNumber ? a.roundNumber - b.roundNumber : a.matchOrder - b.matchOrder,
+    );
+  }
+
   return (
     <div className="space-y-4 py-4">
-      <div className="grid grid-cols-2 gap-1 rounded-lg border bg-muted/40 p-1">
+      <div className="grid grid-cols-3 gap-1 rounded-lg border bg-muted/40 p-1">
         <Button
           size="sm"
           variant={view === 'graph' ? 'default' : 'ghost'}
@@ -58,33 +80,72 @@ export function MatchesTab({ tournamentId, revision }: { tournamentId: string; r
         </Button>
         <Button
           size="sm"
-          variant={view === 'list' ? 'default' : 'ghost'}
-          onClick={() => setView('list')}
+          variant={view === 'group' ? 'default' : 'ghost'}
+          onClick={() => setView('group')}
           className="h-8 w-full"
         >
-          列表
+          分組列表
+        </Button>
+        <Button
+          size="sm"
+          variant={view === 'court' ? 'default' : 'ghost'}
+          onClick={() => setView('court')}
+          className="h-8 w-full"
+        >
+          場地列表
         </Button>
       </div>
 
-      {[...byGroup.entries()].map(([gname, ms]) => {
-        const completed = ms.filter((m) => m.status === 'completed').length;
-        const total = ms.length;
-        return (
-          <Card key={gname} className="p-4">
-            <div className="mb-3 flex items-baseline justify-between">
-              <div className="text-lg font-semibold">{gname} 組</div>
-              <div className="text-xs text-muted-foreground">
-                {completed} / {total} 場已完成
+      {view === 'graph' &&
+        [...byGroup.entries()].map(([gname, ms]) => {
+          const completed = ms.filter((m) => m.status === 'completed').length;
+          const total = ms.length;
+          return (
+            <Card key={gname} className="p-4">
+              <div className="mb-3 flex items-baseline justify-between">
+                <div className="text-lg font-semibold">{gname} 組</div>
+                <div className="text-xs text-muted-foreground">
+                  {completed} / {total} 場已完成
+                </div>
               </div>
-            </div>
-            {view === 'graph' ? (
               <MatchGraph matches={ms} />
-            ) : (
-              <MatchList matches={ms} />
-            )}
-          </Card>
-        );
-      })}
+            </Card>
+          );
+        })}
+
+      {view === 'group' &&
+        [...byGroup.entries()].map(([gname, ms]) => {
+          const completed = ms.filter((m) => m.status === 'completed').length;
+          const total = ms.length;
+          return (
+            <Card key={gname} className="p-4">
+              <div className="mb-3 flex items-baseline justify-between">
+                <div className="text-lg font-semibold">{gname} 組</div>
+                <div className="text-xs text-muted-foreground">
+                  {completed} / {total} 場已完成
+                </div>
+              </div>
+              <MatchList matches={ms} showGroup={false} />
+            </Card>
+          );
+        })}
+
+      {view === 'court' &&
+        byCourt.map((c) => {
+          const completed = c.matches.filter((m) => m.status === 'completed').length;
+          const total = c.matches.length;
+          return (
+            <Card key={c.key} className="p-4">
+              <div className="mb-3 flex items-baseline justify-between">
+                <div className="text-lg font-semibold">{c.courtName}</div>
+                <div className="text-xs text-muted-foreground">
+                  {completed} / {total} 場已完成
+                </div>
+              </div>
+              <MatchList matches={c.matches} showGroup />
+            </Card>
+          );
+        })}
 
       {view === 'graph' && (
         <div className="text-center text-xs text-muted-foreground">
@@ -106,7 +167,7 @@ export function MatchesTab({ tournamentId, revision }: { tournamentId: string; r
   );
 }
 
-function MatchList({ matches }: { matches: MatchFull[] }) {
+function MatchList({ matches, showGroup }: { matches: MatchFull[]; showGroup: boolean }) {
   return (
     <div className="grid gap-2 md:grid-cols-2">
       {matches.map((m) => {
@@ -125,12 +186,17 @@ function MatchList({ matches }: { matches: MatchFull[] }) {
           >
             <div className="text-sm">
               <span className="text-muted-foreground">#{m.matchOrder}</span>{' '}
+              {showGroup && (
+                <Badge variant="outline" className="mr-1 text-xs">
+                  {m.group.name}
+                </Badge>
+              )}
               <span className="font-medium">{pairLabel(m.pairA)}</span>
               <span className="mx-2">vs</span>
               <span className="font-medium">{pairLabel(m.pairB)}</span>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {m.court && (
+              {!showGroup && m.court && (
                 <Badge variant="outline" className="text-xs">
                   {m.court.name}
                 </Badge>
