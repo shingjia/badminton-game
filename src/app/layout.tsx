@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/toaster";
 import { SiteHeader } from "@/components/site-header";
 import { SiteHeaderInner } from "@/components/site-header-inner";
+import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -17,8 +18,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "羽球友誼賽",
-  description: "Badminton friendly tournament",
+  title: "老司機羽球專業系統",
+  description: "shingjia @ 老司機羽球",
 };
 
 export default function RootLayout({
@@ -35,6 +36,7 @@ export default function RootLayout({
           <SiteHeaderInner />
         </SiteHeader>
         <main className="flex-1">{children}</main>
+        <SiteFooter />
         <Toaster />
       </body>
     </html>
