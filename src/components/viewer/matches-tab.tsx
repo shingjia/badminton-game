@@ -47,12 +47,12 @@ export function MatchesTab({ tournamentId, revision }: { tournamentId: string; r
 
   return (
     <div className="space-y-4 py-4">
-      <div className="flex items-center justify-end gap-1 rounded-lg border bg-muted/40 p-1">
+      <div className="flex items-center justify-center gap-1 rounded-lg border bg-muted/40 p-1">
         <Button
           size="sm"
           variant={view === 'graph' ? 'default' : 'ghost'}
           onClick={() => setView('graph')}
-          className="h-7 px-3"
+          className="h-7 px-4"
         >
           循環圖
         </Button>
@@ -60,7 +60,7 @@ export function MatchesTab({ tournamentId, revision }: { tournamentId: string; r
           size="sm"
           variant={view === 'list' ? 'default' : 'ghost'}
           onClick={() => setView('list')}
-          className="h-7 px-3"
+          className="h-7 px-4"
         >
           列表
         </Button>
@@ -129,18 +129,18 @@ function MatchList({ matches }: { matches: MatchFull[] }) {
               <span className="mx-2">vs</span>
               <span className="font-medium">{pairLabel(m.pairB)}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               {m.court && (
                 <Badge variant="outline" className="text-xs">
                   {m.court.name}
                 </Badge>
               )}
               {done ? (
-                <span className="rounded bg-emerald-600 px-2 py-0.5 font-mono text-sm font-bold text-white">
+                <span className="whitespace-nowrap rounded bg-emerald-600 px-2 py-0.5 font-mono text-sm font-bold text-white">
                   {m.scoreA} - {m.scoreB}
                 </span>
               ) : playing ? (
-                <span className="rounded bg-amber-500 px-2 py-0.5 font-mono text-sm font-bold text-white">
+                <span className="whitespace-nowrap rounded bg-amber-500 px-2 py-0.5 font-mono text-sm font-bold text-white">
                   {m.scoreA} - {m.scoreB}
                 </span>
               ) : (

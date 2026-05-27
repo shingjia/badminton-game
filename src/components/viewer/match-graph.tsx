@@ -147,29 +147,26 @@ export function MatchGraph({ matches }: { matches: MatchFull[] }) {
                   {`#${m!.matchOrder}  ${pairLabel(e.a.pair)} vs ${pairLabel(e.b.pair)}  ${labelText}${m!.court ? ` @ ${m!.court.name}` : ''}`}
                 </title>
                 <rect
-                  x={mx - 24}
-                  y={my - 10}
-                  width={48}
-                  height={20}
-                  rx={4}
-                  fill="white"
-                  stroke={color}
-                  strokeWidth={1.5}
+                  x={mx - 32}
+                  y={my - 13}
+                  width={64}
+                  height={26}
+                  rx={6}
+                  fill={color}
                 />
                 <text
                   x={mx}
-                  y={my + 4}
+                  y={my + 6}
                   textAnchor="middle"
-                  fontSize="12"
+                  fontSize="16"
                   fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-                  fontWeight={bold === 'left' ? 700 : 400}
-                  fill={color}
+                  fill="white"
                 >
-                  <tspan fontWeight={bold === 'left' ? 700 : 400}>
+                  <tspan fontWeight={bold === 'left' ? 900 : 600}>
                     {labelText.split(' - ')[0]}
                   </tspan>
-                  <tspan fontWeight={400}> - </tspan>
-                  <tspan fontWeight={bold === 'right' ? 700 : 400}>
+                  <tspan fontWeight={500}> - </tspan>
+                  <tspan fontWeight={bold === 'right' ? 900 : 600}>
                     {labelText.split(' - ')[1]}
                   </tspan>
                 </text>
