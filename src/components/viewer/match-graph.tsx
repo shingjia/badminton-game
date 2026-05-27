@@ -177,13 +177,12 @@ export function MatchGraph({ matches }: { matches: MatchFull[] }) {
       })}
 
       {vertices.map((v, i) => {
-        const labelR = r + 22;
+        const labelR = r + 35;
         const lx = cx + labelR * Math.cos(v.angle);
         const ly = cy + labelR * Math.sin(v.angle);
-        const cosA = Math.cos(v.angle);
-        const anchor: 'start' | 'middle' | 'end' =
-          cosA > 0.3 ? 'start' : cosA < -0.3 ? 'end' : 'middle';
         const [name1, name2] = pairNames(v.pair);
+        const pillW = 110;
+        const pillH = 44;
         return (
           <g key={i}>
             <circle
@@ -194,16 +193,24 @@ export function MatchGraph({ matches }: { matches: MatchFull[] }) {
               stroke="#1f2937"
               strokeWidth={2}
             />
+            <rect
+              x={lx - pillW / 2}
+              y={ly - pillH / 2}
+              width={pillW}
+              height={pillH}
+              rx={8}
+              fill="#1f2937"
+            />
             <text
-              textAnchor={anchor}
-              fontSize="13"
-              fontWeight={600}
-              fill="#111827"
+              textAnchor="middle"
+              fontSize="14"
+              fontWeight={700}
+              fill="white"
             >
-              <tspan x={lx} y={ly}>
+              <tspan x={lx} y={ly - 1}>
                 {name1}
               </tspan>
-              <tspan x={lx} dy={15}>
+              <tspan x={lx} dy={17}>
                 {name2}
               </tspan>
             </text>
