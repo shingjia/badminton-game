@@ -46,8 +46,8 @@ export function MatchGraph({ matches }: { matches: MatchFull[] }) {
     return <p className="py-6 text-center text-sm text-muted-foreground">尚無賽程</p>;
   }
 
-  const cx = 250;
-  const cy = 250;
+  const cx = 280;
+  const cy = 280;
   const r = 150;
 
   const vertices = pairs.map((p, i) => {
@@ -95,8 +95,8 @@ export function MatchGraph({ matches }: { matches: MatchFull[] }) {
 
   return (
     <svg
-      viewBox="0 0 500 500"
-      className="mx-auto w-full max-w-lg"
+      viewBox="0 0 560 560"
+      className="mx-auto w-full max-w-xl"
       role="img"
       aria-label="循環賽對戰圖"
     >
@@ -177,12 +177,17 @@ export function MatchGraph({ matches }: { matches: MatchFull[] }) {
       })}
 
       {vertices.map((v, i) => {
-        const labelR = r + 38;
+        const pillW = 120;
+        const pillH = 50;
+        // Push the pill outward so its rect never overlaps the inner circle.
+        // padR = projection of the pill's half-extents onto the radial direction.
+        const padR =
+          Math.abs(Math.cos(v.angle)) * (pillW / 2) +
+          Math.abs(Math.sin(v.angle)) * (pillH / 2);
+        const labelR = r + padR + 6;
         const lx = cx + labelR * Math.cos(v.angle);
         const ly = cy + labelR * Math.sin(v.angle);
         const [name1, name2] = pairNames(v.pair);
-        const pillW = 120;
-        const pillH = 50;
         return (
           <g key={i}>
             <circle
