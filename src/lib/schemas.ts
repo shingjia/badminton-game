@@ -69,6 +69,16 @@ export const ChangePassword = z.object({
   newPassword: z.string().min(6).max(100),
 });
 
+export const AdminLogin = z.object({
+  username: z.string().trim().min(1).max(30),
+  password: z.string().min(1),
+});
+
+export const CreateAdminUser = z.object({
+  username: z.string().trim().min(1).max(30).regex(/^[a-zA-Z0-9._-]+$/, '只能用英數與 . _ -'),
+  password: z.string().min(6).max(100),
+});
+
 export const UpdateSiteConfig = z.object({
   siteName: z.string().trim().min(1).max(30),
   siteIcon: z.string().trim().min(1).max(4),
