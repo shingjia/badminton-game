@@ -61,7 +61,7 @@ export function StandingsTab({ tournamentId, revision }: { tournamentId: string;
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">#</TableHead>
+                <TableHead className="w-24">名次</TableHead>
                 <TableHead>配對</TableHead>
                 <TableHead className="text-right">勝</TableHead>
                 <TableHead className="text-right">負</TableHead>
@@ -73,8 +73,29 @@ export function StandingsTab({ tournamentId, revision }: { tournamentId: string;
             </TableHeader>
             <TableBody>
               {b.standings.map((r) => (
-                <TableRow key={r.pair_id}>
-                  <TableCell className="font-medium">{r.rank}</TableCell>
+                <TableRow
+                  key={r.pair_id}
+                  className={
+                    r.rank === 1
+                      ? 'bg-amber-50'
+                      : r.rank === 2
+                        ? 'bg-slate-50'
+                        : r.rank === 3
+                          ? 'bg-orange-50'
+                          : ''
+                  }
+                >
+                  <TableCell className="font-medium whitespace-nowrap">
+                    {r.rank === 1 ? (
+                      <span className="font-bold text-amber-700">🥇 冠軍</span>
+                    ) : r.rank === 2 ? (
+                      <span className="font-bold text-slate-700">🥈 亞軍</span>
+                    ) : r.rank === 3 ? (
+                      <span className="font-bold text-orange-700">🥉 季軍</span>
+                    ) : (
+                      <span className="text-muted-foreground">{r.rank}</span>
+                    )}
+                  </TableCell>
                   <TableCell>{pairLabel(r.pair_id)}</TableCell>
                   <TableCell className="text-right">{r.wins}</TableCell>
                   <TableCell className="text-right">{r.losses}</TableCell>

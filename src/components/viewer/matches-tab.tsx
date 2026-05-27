@@ -47,12 +47,12 @@ export function MatchesTab({ tournamentId, revision }: { tournamentId: string; r
 
   return (
     <div className="space-y-4 py-4">
-      <div className="flex items-center justify-center gap-1 rounded-lg border bg-muted/40 p-1">
+      <div className="grid grid-cols-2 gap-1 rounded-lg border bg-muted/40 p-1">
         <Button
           size="sm"
           variant={view === 'graph' ? 'default' : 'ghost'}
           onClick={() => setView('graph')}
-          className="h-7 px-4"
+          className="h-8 w-full"
         >
           循環圖
         </Button>
@@ -60,7 +60,7 @@ export function MatchesTab({ tournamentId, revision }: { tournamentId: string; r
           size="sm"
           variant={view === 'list' ? 'default' : 'ghost'}
           onClick={() => setView('list')}
-          className="h-7 px-4"
+          className="h-8 w-full"
         >
           列表
         </Button>
