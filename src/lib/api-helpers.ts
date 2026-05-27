@@ -1,15 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z, ZodError, ZodSchema } from 'zod';
+import { ZodError, ZodSchema } from 'zod';
 import type { TournamentStatus } from '@prisma/client';
-import { COOKIE_NAME, verifySession } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { COOKIE_NAME, SessionPayload, verifySession } from '@/lib/auth';
 
-export function requireAdmin(req: NextRequest): NextResponse | null {
+/**
+ * Read + verify the session cookie. Returns the payload or null.
+ * Use this when a route needs to know *who* is logged in (e.g. password
+ * change), in addition to requireAdmin which only gates access.
+ */
+export function getSession(req: NextRequest): SessionPayload | null {
   const token = req.cookies.get(COOKIE_NAME)?.value;
   const secret = process.env.SESSION_SECRET ?? '';
-  if (!verifySession(token, secret)) {
+  return verifySession(token, secret);
+}
+
+/** 401 if no valid session; otherwise null. */
+export function requireAdmin(req: NextRequest): NextResponse | null {
+  if (!getSession(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   return null;
+}
+
+/**
+ * Returns NextResponse on failure (401 / 403), or {userId, isOwner} on success.
+ * Does an extra DB lookup so use this only on routes that require owner rights.
+ */
+export async function requireOwner(
+  req: NextRequest,
+): Promise<{ userId: string; isOwner: true } | NextResponse> {
+  const session = getSession(req);
+  if (!session) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+  const user = await prisma.adminUser.findUnique({
+    where: { id: session.u },
+    select: { id: true, isOwner: true },
+  });
+  if (!user) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+  if (!user.isOwner) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+  return { userId: user.id, isOwner: true };
 }
 
 export async function parseJson<T>(req: NextRequest, schema: ZodSchema<T>): Promise<
