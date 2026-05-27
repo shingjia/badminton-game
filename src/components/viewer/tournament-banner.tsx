@@ -64,36 +64,34 @@ export function TournamentBanner({ tournament }: { tournament: Tournament }) {
       <div className="relative container mx-auto max-w-5xl px-4 py-3">
         <Link
           href="/"
-          className="mb-1 inline-block text-xs text-amber-200/90 hover:text-white"
+          aria-label="回到賽事列表"
+          className="flex items-center gap-3 transition hover:opacity-90"
         >
-          ← 賽事列表
-        </Link>
-        <div className="flex items-center gap-3">
-        {iconUrl ? (
-          <img
-            src={iconUrl}
-            alt=""
-            className="h-14 w-14 shrink-0 rounded-full border-2 border-amber-300 bg-white object-cover shadow-md"
-          />
-        ) : (
-          <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-3xl shadow-md ${ring}`}>
-            {tournament.bannerIcon}
-          </span>
-        )}
-        <div className="min-w-0 flex-1">
-          {tournament.bannerTagline.trim() !== '' && (
-            <div className="text-xs font-semibold tracking-wider text-amber-300 drop-shadow-sm">
-              {tournament.bannerTagline}
+          {iconUrl ? (
+            <img
+              src={iconUrl}
+              alt=""
+              className="h-14 w-14 shrink-0 rounded-full border-2 border-amber-300 bg-white object-cover shadow-md"
+            />
+          ) : (
+            <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-3xl shadow-md ${ring}`}>
+              {tournament.bannerIcon}
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            {tournament.bannerTagline.trim() !== '' && (
+              <div className="text-xs font-semibold tracking-wider text-amber-300 drop-shadow-sm">
+                {tournament.bannerTagline}
+              </div>
+            )}
+            <div className="truncate text-xl font-bold leading-tight drop-shadow-sm">
+              {tournament.name}
             </div>
-          )}
-          <div className="truncate text-xl font-bold leading-tight drop-shadow-sm">
-            {tournament.name}
+            {tournament.bannerSubtitle.trim() !== '' && (
+              <div className={`text-xs ${sub}`}>{tournament.bannerSubtitle}</div>
+            )}
           </div>
-          {tournament.bannerSubtitle.trim() !== '' && (
-            <div className={`text-xs ${sub}`}>{tournament.bannerSubtitle}</div>
-          )}
-        </div>
-        </div>
+        </Link>
       </div>
     </header>
   );
