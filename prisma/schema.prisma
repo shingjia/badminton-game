@@ -136,3 +136,12 @@ model AdminConfig {
   siteIconImage  String?
   updatedAt      DateTime @updatedAt
 }
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  isOwner      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
