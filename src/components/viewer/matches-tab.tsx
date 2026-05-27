@@ -102,8 +102,10 @@ export function MatchesTab({ tournamentId, revision }: { tournamentId: string; r
           const total = ms.length;
           return (
             <Card key={gname} className="p-4">
-              <div className="mb-3 flex items-baseline justify-between">
-                <div className="text-lg font-semibold">{gname} 組</div>
+              <div className="mb-3 flex items-center justify-between">
+                <span className="inline-block rounded-lg bg-slate-800 px-4 py-1.5 text-xl font-bold text-white shadow">
+                  {gname} 組
+                </span>
                 <div className="text-xs text-muted-foreground">
                   {completed} / {total} 場已完成
                 </div>
