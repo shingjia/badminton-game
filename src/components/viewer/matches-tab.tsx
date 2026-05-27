@@ -48,13 +48,16 @@ export function MatchesTab({ tournamentId, revision }: { tournamentId: string; r
           <div className="grid gap-2 md:grid-cols-2">
             {ms.map((m) => {
               const done = m.status === 'completed';
+              const playing = !done && (m.scoreA > 0 || m.scoreB > 0);
               return (
                 <Card
                   key={m.id}
                   className={`flex items-center justify-between p-3 ${
                     done
                       ? 'border-emerald-300 bg-emerald-50'
-                      : ''
+                      : playing
+                        ? 'border-amber-300 bg-amber-50'
+                        : ''
                   }`}
                 >
                   <div className="text-sm">
@@ -71,6 +74,10 @@ export function MatchesTab({ tournamentId, revision }: { tournamentId: string; r
                     )}
                     {done ? (
                       <span className="rounded bg-emerald-600 px-2 py-0.5 font-mono text-sm font-bold text-white">
+                        {m.scoreA} - {m.scoreB}
+                      </span>
+                    ) : playing ? (
+                      <span className="rounded bg-amber-500 px-2 py-0.5 font-mono text-sm font-bold text-white">
                         {m.scoreA} - {m.scoreB}
                       </span>
                     ) : (

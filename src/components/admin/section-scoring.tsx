@@ -65,8 +65,15 @@ function ScoreRow({ match, revision }: { match: MatchFull; revision: number }) {
     }
   }
 
+  const isCompleted = match.status === 'completed';
+  const isPlaying = !isCompleted && (match.scoreA > 0 || match.scoreB > 0);
+
   return (
-    <Card className="flex flex-wrap items-center gap-3 p-3 text-sm">
+    <Card
+      className={`flex flex-wrap items-center gap-3 p-3 text-sm ${
+        isCompleted ? 'border-emerald-300 bg-emerald-50' : ''
+      }`}
+    >
       <Badge variant="outline" className="text-xs">{match.group.name}#{match.matchOrder}</Badge>
       {match.court && <Badge variant="outline" className="text-xs">{match.court.name}</Badge>}
       <span className="min-w-[8rem]">{pairLabel(match.pairA)}</span>
@@ -91,7 +98,13 @@ function ScoreRow({ match, revision }: { match: MatchFull; revision: number }) {
       <Button size="sm" onClick={save}>
         儲存
       </Button>
-      {match.status === 'completed' && <Badge variant="secondary" className="ml-auto text-xs">已完成</Badge>}
+      {isCompleted ? (
+        <Badge className="ml-auto bg-emerald-600 text-xs hover:bg-emerald-600">已完成</Badge>
+      ) : isPlaying ? (
+        <Badge className="ml-auto bg-amber-500 text-xs hover:bg-amber-500">比賽進行中</Badge>
+      ) : (
+        <Badge variant="secondary" className="ml-auto text-xs">未開賽</Badge>
+      )}
     </Card>
   );
 }
