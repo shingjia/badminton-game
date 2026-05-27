@@ -118,14 +118,13 @@ export function MatchGraph({ matches }: { matches: MatchFull[] }) {
         const my = (y1 + y2) / 2;
 
         const showLabel = e.status !== 'pending';
-        let labelText = '';
-        let aIsLeft = true;
+        let leftScore = 0;
+        let rightScore = 0;
         let bold: 'left' | 'right' | null = null;
         if (showLabel && m) {
-          aIsLeft = m.pairA.id === e.a.pair.id;
-          const leftScore = aIsLeft ? m.scoreA : m.scoreB;
-          const rightScore = aIsLeft ? m.scoreB : m.scoreA;
-          labelText = `${leftScore} - ${rightScore}`;
+          const aIsLeft = m.pairA.id === e.a.pair.id;
+          leftScore = aIsLeft ? m.scoreA : m.scoreB;
+          rightScore = aIsLeft ? m.scoreB : m.scoreA;
           if (leftScore > rightScore) bold = 'left';
           else if (rightScore > leftScore) bold = 'right';
         }
@@ -144,12 +143,12 @@ export function MatchGraph({ matches }: { matches: MatchFull[] }) {
             {showLabel && (
               <g>
                 <title>
-                  {`#${m!.matchOrder}  ${pairLabel(e.a.pair)} vs ${pairLabel(e.b.pair)}  ${labelText}${m!.court ? ` @ ${m!.court.name}` : ''}`}
+                  {`#${m!.matchOrder}  ${pairLabel(e.a.pair)} vs ${pairLabel(e.b.pair)}  ${leftScore}-${rightScore}${m!.court ? ` @ ${m!.court.name}` : ''}`}
                 </title>
                 <rect
-                  x={mx - 32}
+                  x={mx - 28}
                   y={my - 13}
-                  width={64}
+                  width={56}
                   height={26}
                   rx={6}
                   fill={color}
@@ -161,13 +160,14 @@ export function MatchGraph({ matches }: { matches: MatchFull[] }) {
                   fontSize="16"
                   fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
                   fill="white"
+                  letterSpacing="-0.5"
                 >
                   <tspan fontWeight={bold === 'left' ? 900 : 600}>
-                    {labelText.split(' - ')[0]}
+                    {leftScore}
                   </tspan>
-                  <tspan fontWeight={500}> - </tspan>
+                  <tspan fontWeight={500}>-</tspan>
                   <tspan fontWeight={bold === 'right' ? 900 : 600}>
-                    {labelText.split(' - ')[1]}
+                    {rightScore}
                   </tspan>
                 </text>
               </g>
