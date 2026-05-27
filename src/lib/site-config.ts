@@ -8,7 +8,7 @@ export type SiteConfig = {
 };
 
 const DEFAULTS: SiteConfig = {
-  siteName: '羽球友誼賽',
+  siteName: '老司機羽球專業系統',
   siteIcon: '🏸',
   siteIconImage: null,
 };
