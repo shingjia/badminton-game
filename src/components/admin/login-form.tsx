@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 export function LoginForm({ redirect }: { redirect: string }) {
   const router = useRouter();
   const { toast } = useToast();
-  const [username, setUsername] = useState('admin');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
