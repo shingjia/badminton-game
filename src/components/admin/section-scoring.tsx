@@ -21,22 +21,103 @@ function pairLabel(p: PairWithPlayers) {
   return `${p.player1.name} / ${p.player2.name}`;
 }
 
+type GroupingMode = 'group' | 'court';
+
 export function SectionScoring({ tournament, revision }: { tournament: Tournament; revision: number }) {
   const [matches, setMatches] = useState<MatchFull[]>([]);
+  const [mode, setMode] = useState<GroupingMode>('group');
   const editable = tournament.status === 'in_progress' || tournament.status === 'finished';
 
   useEffect(() => {
     api<MatchFull[]>(`/api/tournaments/${tournament.id}/matches`).then(setMatches);
   }, [tournament.id, revision]);
 
+  // Group by group
+  type Block = { key: string; title: string; order: number; matches: MatchFull[] };
+
+  const byGroup = new Map<string, Block>();
+  for (const m of matches) {
+    const block = byGroup.get(m.group.id) ?? {
+      key: m.group.id,
+      title: `${m.group.name} 組`,
+      order: m.group.displayOrder ?? 0,
+      matches: [],
+    };
+    block.matches.push(m);
+    byGroup.set(m.group.id, block);
+  }
+  const groupBlocks = Array.from(byGroup.values()).sort((a, b) => a.order - b.order);
+  for (const b of groupBlocks) {
+    b.matches.sort((a, b) =>
+      a.roundNumber !== b.roundNumber ? a.roundNumber - b.roundNumber : a.matchOrder - b.matchOrder,
+    );
+  }
+
+  // Group by court
+  const byCourt = new Map<string, Block>();
+  for (const m of matches) {
+    const key = m.court?.id ?? '__none__';
+    const block = byCourt.get(key) ?? {
+      key,
+      title: m.court?.name ?? '未排場地',
+      order: m.court?.displayOrder ?? 9999,
+      matches: [],
+    };
+    block.matches.push(m);
+    byCourt.set(key, block);
+  }
+  const courtBlocks = Array.from(byCourt.values()).sort((a, b) => a.order - b.order);
+  for (const b of courtBlocks) {
+    b.matches.sort((a, b) =>
+      a.roundNumber !== b.roundNumber ? a.roundNumber - b.roundNumber : a.matchOrder - b.matchOrder,
+    );
+  }
+
+  const blocks = mode === 'group' ? groupBlocks : courtBlocks;
+
   return (
     <section id="scoring" className="scroll-mt-16">
       <h2 className="mb-3 text-xl font-semibold">5. 計分</h2>
       {!editable && <p className="text-muted-foreground">尚未進入計分階段</p>}
-      <div className="grid gap-2">
-        {matches.map((m) => (
-          <ScoreRow key={m.id} match={m} revision={revision} />
-        ))}
+      {matches.length > 0 && (
+        <div className="mb-3 grid max-w-xs grid-cols-2 gap-1 rounded-lg border bg-muted/40 p-1">
+          <Button
+            size="sm"
+            variant={mode === 'group' ? 'default' : 'ghost'}
+            onClick={() => setMode('group')}
+            className="h-8 w-full"
+          >
+            依分組
+          </Button>
+          <Button
+            size="sm"
+            variant={mode === 'court' ? 'default' : 'ghost'}
+            onClick={() => setMode('court')}
+            className="h-8 w-full"
+          >
+            依場地
+          </Button>
+        </div>
+      )}
+      <div className="space-y-4">
+        {blocks.map((b) => {
+          const completed = b.matches.filter((m) => m.status === 'completed').length;
+          return (
+            <div key={b.key}>
+              <div className="mb-2 flex items-baseline justify-between">
+                <div className="text-base font-semibold">{b.title}</div>
+                <div className="text-xs text-muted-foreground">
+                  {completed} / {b.matches.length} 場已完成
+                </div>
+              </div>
+              <div className="grid gap-2">
+                {b.matches.map((m) => (
+                  <ScoreRow key={m.id} match={m} revision={revision} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </section>
   );
