@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Tournament } from '@prisma/client';
+import { siteIconImageUrl } from '@/lib/site-config';
 
 const COLOR_BG: Record<string, string> = {
   red: 'bg-red-700',
@@ -32,6 +33,7 @@ export function TournamentBanner({ tournament }: { tournament: Tournament }) {
   const bg = COLOR_BG[tournament.bannerColor] ?? COLOR_BG.red;
   const ring = ICON_RING[tournament.bannerColor] ?? ICON_RING.red;
   const sub = SUBTITLE_COLOR[tournament.bannerColor] ?? SUBTITLE_COLOR.red;
+  const iconUrl = siteIconImageUrl(tournament.bannerIconImage);
   return (
     <header className={`sticky top-0 z-40 ${bg} overflow-hidden text-white shadow`}>
       {/* 細斜紋紋理 */}
@@ -67,9 +69,9 @@ export function TournamentBanner({ tournament }: { tournament: Tournament }) {
           ← 賽事列表
         </Link>
         <div className="flex items-center gap-3">
-        {tournament.bannerIconImage ? (
+        {iconUrl ? (
           <img
-            src={`/api/uploads/${tournament.bannerIconImage}`}
+            src={iconUrl}
             alt=""
             className="h-14 w-14 shrink-0 rounded-full border-2 border-amber-300 bg-white object-cover shadow-md"
           />

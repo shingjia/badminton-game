@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api, ApiError } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { BUILTIN_LOGOS, siteIconImageUrl } from '@/lib/site-config';
 
 type Props = {
   initial: { siteName: string; siteIcon: string; siteIconImage: string | null };
@@ -75,7 +76,7 @@ export function BrandSettingsCard({ initial }: Props) {
     }
   }
 
-  const previewSrc = siteIconImage ? `/api/uploads/${siteIconImage}` : null;
+  const previewSrc = siteIconImageUrl(siteIconImage);
 
   return (
     <Card className="p-4">
@@ -132,6 +133,21 @@ export function BrandSettingsCard({ initial }: Props) {
         <p className="text-xs text-muted-foreground">
           支援 PNG / JPG / WebP，≤ 1MB。上傳後記得按下方「儲存」。
         </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">或使用內建 logo：</span>
+          {BUILTIN_LOGOS.map((logo) => (
+            <Button
+              key={logo.key}
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setSiteIconImage(logo.key)}
+              disabled={uploading}
+            >
+              {logo.label}
+            </Button>
+          ))}
+        </div>
       </div>
       <div className="mt-3 flex justify-end">
         <Button onClick={save} disabled={!canSubmit} size="sm">
