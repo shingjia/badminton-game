@@ -55,7 +55,7 @@ export function SectionGroups({
         method: 'POST',
         body: { groups: groupsPayload },
       });
-      toast({ title: '已產生分組' });
+      toast({ title: '已產生分組並完成配對' });
     } catch (e: any) {
       const code = e.body?.error;
       toast({ title: '無法產生分組', description: GROUP_ERR[code] ?? code, variant: 'destructive' });
