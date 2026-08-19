@@ -68,7 +68,7 @@ export function SectionGroups({
     await submitGroups(groupsPayload);
   }
 
-  // 各等級一組：把每個等級的球員 round-robin 分散到 groupCount 組，
+  // 各組等級均分：把每個等級的球員 round-robin 分散到 groupCount 組，
   // 讓每一組都混到各等級的人，而不是一個等級一組。
   async function generateMixed() {
     const byLevel = byLevelBuckets();
@@ -135,7 +135,7 @@ export function SectionGroups({
               variant="outline"
               disabled={players.length === 0}
             >
-              各等級一組
+              各組等級均分
             </Button>
           </>
         )}
