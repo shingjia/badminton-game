@@ -73,6 +73,13 @@ export function SectionGroups({
         cursor++;
       }
     }
+    // 雙打要求每組偶數人，round-robin 可能剛好讓每組都變奇數
+    // （例如 52 人分 4 組 = 13 人一組）。把奇數組兩兩配對，
+    // 各搬一人過去修正奇偶性，不影響總人數與各組人數的平均程度。
+    const oddIdx = buckets.map((_, i) => i).filter((i) => buckets[i].length % 2 === 1);
+    for (let i = 0; i + 1 < oddIdx.length; i += 2) {
+      buckets[oddIdx[i + 1]].push(buckets[oddIdx[i]].pop()!);
+    }
     const groupsPayload = buckets
       .filter((playerIds) => playerIds.length > 0)
       .map((playerIds) => ({ levelCode: '混合', playerIds }));
