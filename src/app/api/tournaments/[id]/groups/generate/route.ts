@@ -36,15 +36,22 @@ export async function POST(req: NextRequest, { params }: Params) {
     return conflict('player_not_in_tournament');
   }
 
-  const groups = await prisma.$transaction(async (tx) => {
+  const { groups, updatedTournament } = await prisma.$transaction(async (tx) => {
     const created = await applyGrouping(tx, params.id, parsed.data.groups);
-    await tx.tournament.update({
+    const t = await tx.tournament.update({
       where: { id: params.id },
       data: { status: 'grouping' },
     });
-    return created;
+    return { groups: created, updatedTournament: t };
   });
 
   emitToTournament(params.id, 'groups.generated', { tournamentId: params.id, groups });
+  // status 剛從 draft 變 grouping，前端要吃到這個才會解鎖配對按鈕
+  // （canEdit 是看 tournament.status），不然要等下次不相干的
+  // tournament.updated 事件才會巧合同步到。
+  emitToTournament(params.id, 'tournament.updated', {
+    tournamentId: params.id,
+    tournament: updatedTournament,
+  });
   return ok({ groups });
 }
