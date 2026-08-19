@@ -39,6 +39,13 @@ export function SectionGroups({
     return byLevel;
   }
 
+  const GROUP_ERR: Record<string, string> = {
+    no_groups: '沒有可分組的球員',
+    group_too_small: '有一組人數少於 2 人，請調整組數或增加球員',
+    odd_players_in_group: '有一組人數是奇數（雙打需要偶數），請調整「組數」設定或增減球員人數後再試一次',
+    duplicate_player: '同一位球員被分到多組，請重新整理後再試一次',
+  };
+
   async function submitGroups(groupsPayload: { levelCode: string; playerIds: string[] }[]) {
     try {
       await api(`/api/tournaments/${tournament.id}/groups/generate`, {
@@ -47,7 +54,8 @@ export function SectionGroups({
       });
       toast({ title: '已產生分組' });
     } catch (e: any) {
-      toast({ title: '無法產生分組', description: e.body?.error, variant: 'destructive' });
+      const code = e.body?.error;
+      toast({ title: '無法產生分組', description: GROUP_ERR[code] ?? code, variant: 'destructive' });
     }
   }
 
@@ -73,13 +81,10 @@ export function SectionGroups({
         cursor++;
       }
     }
-    // 雙打要求每組偶數人，round-robin 可能剛好讓每組都變奇數
-    // （例如 52 人分 4 組 = 13 人一組）。把奇數組兩兩配對，
-    // 各搬一人過去修正奇偶性，不影響總人數與各組人數的平均程度。
-    const oddIdx = buckets.map((_, i) => i).filter((i) => buckets[i].length % 2 === 1);
-    for (let i = 0; i + 1 < oddIdx.length; i += 2) {
-      buckets[oddIdx[i + 1]].push(buckets[oddIdx[i]].pop()!);
-    }
+    // 雙打要求每組偶數人；round-robin 有時會剛好讓每組都變奇數
+    // （例如 52 人分 4 組 = 13 人一組）。不自動搬人湊數——那樣會
+    // 悄悄打亂各組的等級分佈，改由後端擋下並提示，由使用者決定
+    // 要調組數還是調人數。
     const groupsPayload = buckets
       .filter((playerIds) => playerIds.length > 0)
       .map((playerIds) => ({ levelCode: '混合', playerIds }));
