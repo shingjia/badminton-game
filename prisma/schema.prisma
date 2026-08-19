@@ -46,6 +46,7 @@ model Player {
   name         String
   level        String?
   groupId      String?
+  seed         Int?
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   group      Group?     @relation(fields: [groupId], references: [id], onDelete: SetNull)

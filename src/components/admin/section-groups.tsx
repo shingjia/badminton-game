@@ -55,7 +55,7 @@ export function SectionGroups({
         method: 'POST',
         body: { groups: groupsPayload },
       });
-      toast({ title: '已產生分組並完成配對' });
+      toast({ title: '已產生分組' });
     } catch (e: any) {
       const code = e.body?.error;
       toast({ title: '無法產生分組', description: GROUP_ERR[code] ?? code, variant: 'destructive' });
@@ -94,20 +94,26 @@ export function SectionGroups({
     await submitGroups(groupsPayload);
   }
 
-  async function renamePlayer(playerId: string, name: string) {
+  async function updatePlayer(playerId: string, patch: { name?: string; seed?: number | null }) {
     try {
-      await api(`/api/players/${playerId}`, { method: 'PATCH', body: { name } });
+      await api(`/api/players/${playerId}`, { method: 'PATCH', body: patch });
     } catch {
       toast({ title: '更新失敗', variant: 'destructive' });
     }
   }
 
-  async function shuffle(groupId: string) {
+  const PAIR_METHODS = [
+    { key: 'random', label: '隨機重抽' },
+    { key: 'seed', label: '依棒次配對' },
+    { key: 'level', label: '依等級配對' },
+  ] as const;
+
+  async function shuffle(groupId: string, method: (typeof PAIR_METHODS)[number]['key']) {
     try {
-      await api(`/api/groups/${groupId}/pairs/shuffle`, { method: 'POST' });
-      toast({ title: '配對已重抽' });
+      await api(`/api/groups/${groupId}/pairs/shuffle`, { method: 'POST', body: { method } });
+      toast({ title: '配對已產生' });
     } catch (e: any) {
-      toast({ title: '重抽失敗', description: e.body?.error, variant: 'destructive' });
+      toast({ title: '配對失敗', description: e.body?.error, variant: 'destructive' });
     }
   }
 
@@ -163,12 +169,28 @@ export function SectionGroups({
                 <ul className="space-y-1">
                   {g.players.map((p) => (
                     <li key={p.id} className="flex items-center gap-2 text-sm">
+                      {canEditNames && (
+                        <input
+                          type="number"
+                          min={1}
+                          max={999}
+                          defaultValue={p.seed ?? ''}
+                          placeholder="棒次"
+                          title="棒次"
+                          onBlur={(e) => {
+                            const v = e.target.value.trim();
+                            const seed = v ? Number(v) : null;
+                            if (seed !== (p.seed ?? null)) updatePlayer(p.id, { seed });
+                          }}
+                          className="h-7 w-12 shrink-0 rounded border px-1 text-center"
+                        />
+                      )}
                       {canEditNames ? (
                         <input
                           defaultValue={p.name}
                           onBlur={(e) => {
                             const v = e.target.value.trim();
-                            if (v && v !== p.name) renamePlayer(p.id, v);
+                            if (v && v !== p.name) updatePlayer(p.id, { name: v });
                           }}
                           className="h-7 min-w-0 flex-1 rounded border px-1"
                         />
@@ -201,15 +223,18 @@ export function SectionGroups({
               )}
 
               {canEdit && (
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={isLocked}
-                    onClick={() => shuffle(g.id)}
-                  >
-                    重抽配對
-                  </Button>
+                <div className="flex flex-wrap gap-2">
+                  {PAIR_METHODS.map((m) => (
+                    <Button
+                      key={m.key}
+                      size="sm"
+                      variant="outline"
+                      disabled={isLocked}
+                      onClick={() => shuffle(g.id, m.key)}
+                    >
+                      {m.label}
+                    </Button>
+                  ))}
                   <Button
                     size="sm"
                     disabled={isLocked || g.pairs.length === 0}

@@ -31,6 +31,7 @@ export const UpdatePlayer = z.object({
   name: z.string().trim().min(1).max(50).optional(),
   level: z.string().trim().min(1).max(10).optional(),
   groupId: z.string().nullable().optional(),
+  seed: z.number().int().min(1).max(999).nullable().optional(),
 });
 
 // Used in POST /api/tournaments/:id/groups/generate

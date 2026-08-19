@@ -1,14 +1,20 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { conflict, notFound, ok, requireAdmin } from '@/lib/api-helpers';
-import { shufflePairs, writePairs } from '@/lib/pairing';
+import { shufflePairs, seedPairs, levelPairs, writePairs, type PairDraft } from '@/lib/pairing';
 import { emitToTournament } from '@/lib/socket-server';
 
 type Params = { params: { id: string } };
 
+const METHODS = ['random', 'seed', 'level'] as const;
+type Method = (typeof METHODS)[number];
+
 export async function POST(req: NextRequest, { params }: Params) {
   const unauth = requireAdmin(req);
   if (unauth) return unauth;
+
+  const body = await req.json().catch(() => ({}));
+  const method: Method = METHODS.includes(body?.method) ? body.method : 'random';
 
   const group = await prisma.group.findUnique({
     where: { id: params.id },
@@ -20,11 +26,15 @@ export async function POST(req: NextRequest, { params }: Params) {
     return conflict('pairing_locked');
   }
 
-  const playerIds = group.players.map((p) => p.id);
-
-  let drafts;
+  let drafts: PairDraft[];
   try {
-    drafts = shufflePairs(playerIds);
+    if (method === 'seed') {
+      drafts = seedPairs(group.players.map((p) => ({ id: p.id, seed: p.seed })));
+    } else if (method === 'level') {
+      drafts = levelPairs(group.players.map((p) => ({ id: p.id, level: p.level })));
+    } else {
+      drafts = shufflePairs(group.players.map((p) => p.id));
+    }
   } catch (e: any) {
     return conflict(e.message);
   }
