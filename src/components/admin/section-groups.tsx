@@ -22,6 +22,9 @@ export function SectionGroups({
 
   const canGenerate = tournament.status === 'draft' || tournament.status === 'grouping';
   const canEdit = tournament.status === 'grouping';
+  // 換人＝直接改該位置的姓名，不動 group/pair/match 資料，所以不受鎖定
+  // 或分組公正性影響，賽事結束前都能改。
+  const canEditNames = tournament.status !== 'finished';
 
   useEffect(() => {
     api<GroupWithData[]>(`/api/tournaments/${tournament.id}/groups`).then(setGroups);
@@ -91,14 +94,11 @@ export function SectionGroups({
     await submitGroups(groupsPayload);
   }
 
-  async function movePlayer(playerId: string, toGroupId: string) {
+  async function renamePlayer(playerId: string, name: string) {
     try {
-      await api(`/api/players/${playerId}`, {
-        method: 'PATCH',
-        body: { groupId: toGroupId },
-      });
+      await api(`/api/players/${playerId}`, { method: 'PATCH', body: { name } });
     } catch {
-      toast({ title: '移動失敗', variant: 'destructive' });
+      toast({ title: '更新失敗', variant: 'destructive' });
     }
   }
 
@@ -162,25 +162,21 @@ export function SectionGroups({
                 <div className="mb-1 text-xs font-medium text-muted-foreground">球員</div>
                 <ul className="space-y-1">
                   {g.players.map((p) => (
-                    <li key={p.id} className="flex items-center justify-between gap-2 text-sm">
-                      <span>
-                        {p.name}
-                        {p.level && (
-                          <span className="ml-1 text-xs text-muted-foreground">({p.level})</span>
-                        )}
-                      </span>
-                      {canEdit && !isLocked && (
-                        <select
-                          className="h-7 rounded border px-1 text-xs"
-                          value={g.id}
-                          onChange={(e) => movePlayer(p.id, e.target.value)}
-                        >
-                          {groups.map((gg) => (
-                            <option key={gg.id} value={gg.id}>
-                              {gg.name}
-                            </option>
-                          ))}
-                        </select>
+                    <li key={p.id} className="flex items-center gap-2 text-sm">
+                      {canEditNames ? (
+                        <input
+                          defaultValue={p.name}
+                          onBlur={(e) => {
+                            const v = e.target.value.trim();
+                            if (v && v !== p.name) renamePlayer(p.id, v);
+                          }}
+                          className="h-7 min-w-0 flex-1 rounded border px-1"
+                        />
+                      ) : (
+                        <span>{p.name}</span>
+                      )}
+                      {p.level && (
+                        <span className="text-xs text-muted-foreground">({p.level})</span>
                       )}
                     </li>
                   ))}
