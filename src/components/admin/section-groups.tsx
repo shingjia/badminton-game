@@ -31,6 +31,35 @@ export function SectionGroups({
     api<Player[]>(`/api/tournaments/${tournament.id}/players`).then(setPlayers);
   }, [tournament.id, revision]);
 
+  // 分組完球員預設沒有棒次；只要組內有人棒次是空的，就依目前順序
+  // （棒次優先，沒有就依姓名）自動補上 1..N，讓上下移動按鈕一開始
+  // 就有東西可以動，不用管理員自己一個一個手動輸入。
+  useEffect(() => {
+    for (const g of groups) {
+      if (g.players.some((p) => p.seed == null)) {
+        orderPlayers(g.players).forEach((p, i) => {
+          if (p.seed !== i + 1) updatePlayer(p.id, { seed: i + 1 });
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups]);
+
+  function orderPlayers(players: Player[]) {
+    return [...players].sort(
+      (a, b) => (a.seed ?? Infinity) - (b.seed ?? Infinity) || a.name.localeCompare(b.name),
+    );
+  }
+
+  async function moveSeed(g: GroupWithData, playerId: string, dir: 'up' | 'down') {
+    const ordered = orderPlayers(g.players);
+    const i = ordered.findIndex((p) => p.id === playerId);
+    const j = dir === 'up' ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= ordered.length) return;
+    [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
+    await Promise.all(ordered.map((p, idx) => updatePlayer(p.id, { seed: idx + 1 })));
+  }
+
   function byLevelBuckets() {
     const byLevel = new Map<string, string[]>();
     for (const p of players) {
@@ -169,7 +198,7 @@ export function SectionGroups({
               <div className="mb-3">
                 <div className="mb-1 text-xs font-medium text-muted-foreground">球員</div>
                 <ul className="space-y-1">
-                  {g.players.map((p) => (
+                  {orderPlayers(g.players).map((p, idx) => (
                     <li key={p.id} className="flex items-center gap-2 text-sm">
                       {canEditNames && (
                         <input
@@ -201,6 +230,30 @@ export function SectionGroups({
                       )}
                       {p.level && (
                         <span className="text-xs text-muted-foreground">({p.level})</span>
+                      )}
+                      {canEditNames && (
+                        <span className="ml-auto flex shrink-0 gap-0.5">
+                          <button
+                            type="button"
+                            title="上移"
+                            aria-label="上移"
+                            disabled={idx === 0}
+                            onClick={() => moveSeed(g, p.id, 'up')}
+                            className="flex h-6 w-6 items-center justify-center rounded border text-xs disabled:opacity-30"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            title="下移"
+                            aria-label="下移"
+                            disabled={idx === g.players.length - 1}
+                            onClick={() => moveSeed(g, p.id, 'down')}
+                            className="flex h-6 w-6 items-center justify-center rounded border text-xs disabled:opacity-30"
+                          >
+                            ▼
+                          </button>
+                        </span>
                       )}
                     </li>
                   ))}
