@@ -51,8 +51,8 @@ export function SectionPlayers({
 
   return (
     <section id="players" className="scroll-mt-16">
-      <h2 className="mb-3 text-xl font-semibold">2. 球員報名 ({players.length})</h2>
-      <Card className="p-4">
+      <h2 className="mb-3 text-xl font-semibold">球員報名 ({players.length})</h2>
+      <Card className="border-l-4 border-l-blue-500 p-4">
         {!locked && (
           <div className="mb-4 space-y-3">
             <div className="flex justify-end">

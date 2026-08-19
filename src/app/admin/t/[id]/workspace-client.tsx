@@ -3,13 +3,55 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTournamentSocket } from '@/lib/use-socket';
-import { WorkspaceNav } from '@/components/admin/workspace-nav';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SectionSettings } from '@/components/admin/section-settings';
+import { SectionCourts } from '@/components/admin/section-courts';
 import { SectionPlayers } from '@/components/admin/section-players';
 import { SectionGroups } from '@/components/admin/section-groups';
 import { SectionMatches } from '@/components/admin/section-matches';
 import { SectionScoring } from '@/components/admin/section-scoring';
 import type { Tournament } from '@prisma/client';
+
+// 每個分頁一個代表色，跟各 Section 卡片的左邊色條對應，
+// 點到哪個 tab 一眼就看得出來（active 態用同色底色 + 深色字）。
+const TABS = [
+  {
+    id: 'settings',
+    label: '賽事設定',
+    active:
+      'data-[state=active]:bg-slate-200 data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-700 dark:data-[state=active]:text-slate-100',
+  },
+  {
+    id: 'teams',
+    label: '隊伍報名',
+    active:
+      'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 dark:data-[state=active]:bg-blue-900/50 dark:data-[state=active]:text-blue-200',
+  },
+  {
+    id: 'groups',
+    label: '分組',
+    active:
+      'data-[state=active]:bg-purple-100 data-[state=active]:text-purple-900 dark:data-[state=active]:bg-purple-900/50 dark:data-[state=active]:text-purple-200',
+  },
+  {
+    id: 'courts',
+    label: '場地',
+    active:
+      'data-[state=active]:bg-orange-100 data-[state=active]:text-orange-900 dark:data-[state=active]:bg-orange-900/50 dark:data-[state=active]:text-orange-200',
+  },
+  {
+    id: 'matches',
+    label: '賽程',
+    active:
+      'data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-900 dark:data-[state=active]:bg-emerald-900/50 dark:data-[state=active]:text-emerald-200',
+  },
+  {
+    id: 'scoring',
+    label: '計分',
+    active:
+      'data-[state=active]:bg-red-100 data-[state=active]:text-red-900 dark:data-[state=active]:bg-red-900/50 dark:data-[state=active]:text-red-200',
+  },
+] as const;
 
 export function WorkspaceClient({
   tournamentId,
@@ -42,13 +84,32 @@ export function WorkspaceClient({
   });
 
   return (
-    <div className="space-y-12">
-      <WorkspaceNav />
-      <SectionSettings tournament={tournament} />
-      <SectionPlayers tournament={tournament} revision={revision} />
-      <SectionGroups tournament={tournament} revision={revision} />
-      <SectionMatches tournament={tournament} revision={revision} />
-      <SectionScoring tournament={tournament} revision={revision} />
-    </div>
+    <Tabs defaultValue="settings">
+      <TabsList className="h-auto w-full flex-wrap justify-start gap-1 overflow-x-auto">
+        {TABS.map((t) => (
+          <TabsTrigger key={t.id} value={t.id} className={t.active}>
+            {t.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      <TabsContent value="settings" className="mt-6">
+        <SectionSettings tournament={tournament} />
+      </TabsContent>
+      <TabsContent value="teams" className="mt-6">
+        <SectionPlayers tournament={tournament} revision={revision} />
+      </TabsContent>
+      <TabsContent value="groups" className="mt-6">
+        <SectionGroups tournament={tournament} revision={revision} />
+      </TabsContent>
+      <TabsContent value="courts" className="mt-6">
+        <SectionCourts tournament={tournament} />
+      </TabsContent>
+      <TabsContent value="matches" className="mt-6">
+        <SectionMatches tournament={tournament} revision={revision} />
+      </TabsContent>
+      <TabsContent value="scoring" className="mt-6">
+        <SectionScoring tournament={tournament} revision={revision} />
+      </TabsContent>
+    </Tabs>
   );
 }

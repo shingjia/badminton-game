@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
-import type { Court, Tournament } from '@prisma/client';
+import type { Tournament } from '@prisma/client';
 
 const BANNER_COLORS = [
   { key: 'red', cls: 'bg-red-700' },
@@ -29,15 +29,9 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
   const [bannerIconImage, setBannerIconImage] = useState<string | null>(tournament.bannerIconImage);
   const [bannerTagline, setBannerTagline] = useState(tournament.bannerTagline);
   const [bannerSubtitle, setBannerSubtitle] = useState(tournament.bannerSubtitle);
-  const [courts, setCourts] = useState<Court[]>([]);
-  const [newCourt, setNewCourt] = useState('');
   const [uploading, setUploading] = useState(false);
 
   const lockedSettings = tournament.status !== 'draft';
-
-  useEffect(() => {
-    api<Court[]>(`/api/tournaments/${tournament.id}/courts`).then(setCourts);
-  }, [tournament.id]);
 
   async function saveSettings() {
     try {
@@ -58,21 +52,6 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
     } catch {
       toast({ title: '儲存失敗', variant: 'destructive' });
     }
-  }
-
-  async function addCourt() {
-    if (!newCourt.trim()) return;
-    const c = await api<Court>(`/api/tournaments/${tournament.id}/courts`, {
-      method: 'POST',
-      body: { name: newCourt.trim() },
-    });
-    setCourts((cs) => [...cs, c]);
-    setNewCourt('');
-  }
-
-  async function removeCourt(id: string) {
-    await api(`/api/courts/${id}`, { method: 'DELETE' });
-    setCourts((cs) => cs.filter((c) => c.id !== id));
   }
 
   async function onIconFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -101,9 +80,11 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
   const iconPreview = bannerIconImage ? `/api/uploads/${bannerIconImage}` : null;
 
   return (
-    <section id="settings" className="scroll-mt-16">
-      <h2 className="mb-3 text-xl font-semibold">1. 賽事設定</h2>
-      <Card className="space-y-4 p-4">
+    <section className="space-y-4">
+      <h2 className="text-xl font-semibold">賽事設定</h2>
+
+      <Card className="space-y-4 border-l-4 border-l-slate-500 p-4">
+        <h3 className="text-sm font-medium text-muted-foreground">基本資訊</h3>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label htmlFor="s-name">名稱</Label>
@@ -134,7 +115,10 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
             />
           </div>
         </div>
+      </Card>
 
+      <Card className="space-y-4 border-l-4 border-l-slate-500 p-4">
+        <h3 className="text-sm font-medium text-muted-foreground">主視覺</h3>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label htmlFor="s-icon">主視覺 icon emoji（後備）</Label>
@@ -228,35 +212,6 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
         <Button onClick={saveSettings} size="sm">
           儲存設定
         </Button>
-
-        <div className="border-t pt-4">
-          <Label>場地</Label>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {courts.map((c) => (
-              <div key={c.id} className="flex items-center gap-1 rounded-md border px-2 py-1 text-sm">
-                {c.name}
-                <button
-                  onClick={() => removeCourt(c.id)}
-                  className="ml-1 text-muted-foreground hover:text-destructive"
-                  aria-label="刪除"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex gap-2">
-            <Input
-              placeholder="場地名稱（例：場地 1）"
-              value={newCourt}
-              onChange={(e) => setNewCourt(e.target.value)}
-              className="max-w-xs"
-            />
-            <Button onClick={addCourt} size="sm" disabled={!newCourt.trim()}>
-              新增場地
-            </Button>
-          </div>
-        </div>
       </Card>
     </section>
   );

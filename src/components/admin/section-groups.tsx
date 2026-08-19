@@ -28,8 +28,7 @@ export function SectionGroups({
     api<Player[]>(`/api/tournaments/${tournament.id}/players`).then(setPlayers);
   }, [tournament.id, revision]);
 
-  async function generate() {
-    // Auto-assign: group players by their level field; each distinct level = one group
+  function byLevelBuckets() {
     const byLevel = new Map<string, string[]>();
     for (const p of players) {
       const lvl = p.level ?? 'unassigned';
@@ -37,10 +36,10 @@ export function SectionGroups({
       arr.push(p.id);
       byLevel.set(lvl, arr);
     }
-    const groupsPayload = [...byLevel.entries()].map(([levelCode, playerIds]) => ({
-      levelCode,
-      playerIds,
-    }));
+    return byLevel;
+  }
+
+  async function submitGroups(groupsPayload: { levelCode: string; playerIds: string[] }[]) {
     try {
       await api(`/api/tournaments/${tournament.id}/groups/generate`, {
         method: 'POST',
@@ -50,6 +49,34 @@ export function SectionGroups({
     } catch (e: any) {
       toast({ title: '無法產生分組', description: e.body?.error, variant: 'destructive' });
     }
+  }
+
+  // 依等級自動分組：每個等級各自成一組
+  async function generateByLevel() {
+    const groupsPayload = [...byLevelBuckets().entries()].map(([levelCode, playerIds]) => ({
+      levelCode,
+      playerIds,
+    }));
+    await submitGroups(groupsPayload);
+  }
+
+  // 各等級一組：把每個等級的球員 round-robin 分散到 groupCount 組，
+  // 讓每一組都混到各等級的人，而不是一個等級一組。
+  async function generateMixed() {
+    const byLevel = byLevelBuckets();
+    const n = tournament.groupCount;
+    const buckets: string[][] = Array.from({ length: n }, () => []);
+    let cursor = 0;
+    for (const lvl of [...byLevel.keys()].sort()) {
+      for (const pid of byLevel.get(lvl)!) {
+        buckets[cursor % n].push(pid);
+        cursor++;
+      }
+    }
+    const groupsPayload = buckets
+      .filter((playerIds) => playerIds.length > 0)
+      .map((playerIds) => ({ levelCode: '混合', playerIds }));
+    await submitGroups(groupsPayload);
   }
 
   async function movePlayer(playerId: string, toGroupId: string) {
@@ -84,15 +111,25 @@ export function SectionGroups({
   return (
     <section id="groups" className="scroll-mt-16">
       <div className="mb-3 flex items-center gap-3">
-        <h2 className="text-xl font-semibold">3. 分組與配對</h2>
+        <h2 className="text-xl font-semibold">分組與配對</h2>
         {canGenerate && (
-          <Button onClick={generate} size="sm" disabled={players.length === 0}>
-            依等級自動分組
-          </Button>
+          <>
+            <Button onClick={generateByLevel} size="sm" disabled={players.length === 0}>
+              依等級自動分組
+            </Button>
+            <Button
+              onClick={generateMixed}
+              size="sm"
+              variant="outline"
+              disabled={players.length === 0}
+            >
+              各等級一組
+            </Button>
+          </>
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 border-l-4 border-l-purple-500 pl-4 md:grid-cols-2 lg:grid-cols-3">
         {groups.map((g) => {
           const isLocked = !!g.pairingLockedAt;
           return (
@@ -114,7 +151,12 @@ export function SectionGroups({
                 <ul className="space-y-1">
                   {g.players.map((p) => (
                     <li key={p.id} className="flex items-center justify-between gap-2 text-sm">
-                      <span>{p.name}</span>
+                      <span>
+                        {p.name}
+                        {p.level && (
+                          <span className="ml-1 text-xs text-muted-foreground">({p.level})</span>
+                        )}
+                      </span>
                       {canEdit && !isLocked && (
                         <select
                           className="h-7 rounded border px-1 text-xs"

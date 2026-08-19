@@ -52,13 +52,13 @@ export function SectionMatches({ tournament, revision }: { tournament: Tournamen
   return (
     <section id="matches" className="scroll-mt-16">
       <div className="mb-3 flex items-center gap-3">
-        <h2 className="text-xl font-semibold">4. 賽程</h2>
+        <h2 className="text-xl font-semibold">賽程</h2>
         <Button onClick={generate} size="sm" disabled={tournament.status !== 'in_progress' || matches.length > 0}>
           {matches.length > 0 ? '已產生' : '產生對戰 + 分配場地'}
         </Button>
         <span className="text-sm text-muted-foreground">{matches.length} 場</span>
       </div>
-      <div className="space-y-4">
+      <div className="space-y-4 border-l-4 border-l-emerald-500 pl-4">
         {[...byGroup.entries()].map(([gname, ms]) => (
           <Card key={gname} className="p-3">
             <div className="mb-2 font-semibold">{gname} 組</div>

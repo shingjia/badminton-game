@@ -76,7 +76,7 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
 
   return (
     <section id="scoring" className="scroll-mt-16">
-      <h2 className="mb-3 text-xl font-semibold">5. 計分</h2>
+      <h2 className="mb-3 text-xl font-semibold">計分</h2>
       {!editable && <p className="text-muted-foreground">尚未進入計分階段</p>}
       {matches.length > 0 && (
         <div className="mb-3 grid max-w-xs grid-cols-2 gap-1 rounded-lg border bg-muted/40 p-1">
@@ -98,7 +98,7 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
           </Button>
         </div>
       )}
-      <div className="space-y-4">
+      <div className="space-y-4 border-l-4 border-l-red-500 pl-4">
         {blocks.map((b) => {
           const completed = b.matches.filter((m) => m.status === 'completed').length;
           return (
