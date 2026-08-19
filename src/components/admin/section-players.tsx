@@ -22,10 +22,30 @@ export function SectionPlayers({
   const [players, setPlayers] = useState<Player[]>([]);
   const [name, setName] = useState('');
   const [level, setLevel] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     api<Player[]>(`/api/tournaments/${tournament.id}/players`).then(setPlayers);
   }, [tournament.id, revision]);
+
+  function toggleSelected(id: string) {
+    setSelected((s) => {
+      const next = new Set(s);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  async function removeSelected() {
+    const ids = [...selected];
+    try {
+      await Promise.all(ids.map((id) => api(`/api/players/${id}`, { method: 'DELETE' })));
+      setSelected(new Set());
+      toast({ title: `已刪除 ${ids.length} 位球員` });
+    } catch {
+      toast({ title: '刪除失敗', variant: 'destructive' });
+    }
+  }
 
   async function add() {
     if (!name.trim()) return;
@@ -85,14 +105,45 @@ export function SectionPlayers({
             </div>
           </div>
         )}
+        {!locked && players.length > 0 && (
+          <div className="mb-2 flex items-center gap-3 text-sm">
+            <label className="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={selected.size === players.length}
+                onChange={(e) =>
+                  setSelected(e.target.checked ? new Set(players.map((p) => p.id)) : new Set())
+                }
+              />
+              全選
+            </label>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={selected.size === 0}
+              onClick={removeSelected}
+            >
+              刪除已選（{selected.size}）
+            </Button>
+          </div>
+        )}
         <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
           {players.map((p) => (
             <div key={p.id} className="flex items-center justify-between rounded-md border p-2">
-              <div className="flex-1">
-                <div className="font-medium">{p.name}</div>
-                {p.level && (
-                  <div className="text-xs text-muted-foreground">等級：{p.level}</div>
+              <div className="flex items-center gap-2">
+                {!locked && (
+                  <input
+                    type="checkbox"
+                    checked={selected.has(p.id)}
+                    onChange={() => toggleSelected(p.id)}
+                  />
                 )}
+                <div>
+                  <div className="font-medium">{p.name}</div>
+                  {p.level && (
+                    <div className="text-xs text-muted-foreground">等級：{p.level}</div>
+                  )}
+                </div>
               </div>
               {!locked && (
                 <Button variant="ghost" size="sm" onClick={() => remove(p.id)}>
