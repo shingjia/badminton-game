@@ -111,7 +111,6 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
               max={31}
               value={pointsPerGame}
               onChange={(e) => setPointsPerGame(Number(e.target.value))}
-              disabled={lockedSettings}
             />
           </div>
         </div>

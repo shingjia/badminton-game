@@ -113,7 +113,9 @@ export function SectionGroups({
       await api(`/api/groups/${groupId}/pairs/shuffle`, { method: 'POST', body: { method } });
       toast({ title: '配對已產生' });
     } catch (e: any) {
-      toast({ title: '配對失敗', description: e.body?.error, variant: 'destructive' });
+      const code = e.body?.error;
+      const msg = code === 'group_has_scored_matches' ? '這組已經有比賽計分了，無法重新配對' : undefined;
+      toast({ title: '配對失敗', description: msg ?? code, variant: 'destructive' });
     }
   }
 
@@ -229,7 +231,6 @@ export function SectionGroups({
                       key={m.key}
                       size="sm"
                       variant="outline"
-                      disabled={isLocked}
                       onClick={() => shuffle(g.id, m.key)}
                     >
                       {m.label}
