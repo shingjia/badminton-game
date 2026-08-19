@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -126,8 +126,17 @@ function ScoreRow({ match, revision }: { match: MatchFull; revision: number }) {
   const { toast } = useToast();
   const [a, setA] = useState(match.scoreA);
   const [b, setB] = useState(match.scoreB);
+  // 這一列自己還有幾個 PATCH 在飛。>0 時代表本地樂觀值比 props 新，
+  // 忽略這時候從 revision 觸發的重新整理，不然會被回音 fetch 到的
+  // 舊值蓋掉，導致分數閃一下又跳回來。
+  // ponytail: 計數器擋掉常見的連點 race，但極端情況（前一次 PATCH 的
+  // 回音剛好在兩次請求都送出後才 resolve）理論上還是可能蓋到舊值。
+  // 真的還會發生的話，改成 SectionScoring 直接吃 socket payload
+  // 更新單一 match，不要整包重新 GET，從根拔掉這個 race。
+  const pending = useRef(0);
 
   useEffect(() => {
+    if (pending.current > 0) return;
     setA(match.scoreA);
     setB(match.scoreB);
   }, [match.scoreA, match.scoreB, revision]);
@@ -138,15 +147,20 @@ function ScoreRow({ match, revision }: { match: MatchFull; revision: number }) {
     if (nextA === a && nextB === b) return;
     setA(nextA);
     setB(nextB);
+    pending.current++;
     api(`/api/matches/${match.id}/score`, {
       method: 'PATCH',
       body: { scoreA: nextA, scoreB: nextB },
-    }).catch((e) => {
-      setA(match.scoreA);
-      setB(match.scoreB);
-      const reason = e instanceof ApiError ? e.body?.error : 'unknown';
-      toast({ title: '計分失敗', description: reason, variant: 'destructive' });
-    });
+    })
+      .catch((e) => {
+        setA(match.scoreA);
+        setB(match.scoreB);
+        const reason = e instanceof ApiError ? e.body?.error : 'unknown';
+        toast({ title: '計分失敗', description: reason, variant: 'destructive' });
+      })
+      .finally(() => {
+        pending.current--;
+      });
   }
 
   const isCompleted = match.status === 'completed';
