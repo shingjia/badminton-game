@@ -239,7 +239,6 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
                   onClick={() => removeCourt(c.id)}
                   className="ml-1 text-muted-foreground hover:text-destructive"
                   aria-label="刪除"
-                  disabled={lockedSettings}
                 >
                   ×
                 </button>
@@ -252,9 +251,8 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
               value={newCourt}
               onChange={(e) => setNewCourt(e.target.value)}
               className="max-w-xs"
-              disabled={lockedSettings}
             />
-            <Button onClick={addCourt} size="sm" disabled={lockedSettings || !newCourt.trim()}>
+            <Button onClick={addCourt} size="sm" disabled={!newCourt.trim()}>
               新增場地
             </Button>
           </div>

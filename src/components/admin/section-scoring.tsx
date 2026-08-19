@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { api, ApiError } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
@@ -125,67 +124,78 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
 
 function ScoreRow({ match, revision }: { match: MatchFull; revision: number }) {
   const { toast } = useToast();
-  const [a, setA] = useState(String(match.scoreA));
-  const [b, setB] = useState(String(match.scoreB));
+  const [a, setA] = useState(match.scoreA);
+  const [b, setB] = useState(match.scoreB);
 
   useEffect(() => {
-    setA(String(match.scoreA));
-    setB(String(match.scoreB));
+    setA(match.scoreA);
+    setB(match.scoreB);
   }, [match.scoreA, match.scoreB, revision]);
 
-  async function save() {
-    try {
-      await api(`/api/matches/${match.id}/score`, {
-        method: 'PATCH',
-        body: { scoreA: Number(a), scoreB: Number(b) },
-      });
-      toast({ title: '已記分' });
-    } catch (e) {
+  function bump(side: 'A' | 'B', delta: number) {
+    const nextA = side === 'A' ? Math.max(0, a + delta) : a;
+    const nextB = side === 'B' ? Math.max(0, b + delta) : b;
+    if (nextA === a && nextB === b) return;
+    setA(nextA);
+    setB(nextB);
+    api(`/api/matches/${match.id}/score`, {
+      method: 'PATCH',
+      body: { scoreA: nextA, scoreB: nextB },
+    }).catch((e) => {
+      setA(match.scoreA);
+      setB(match.scoreB);
       const reason = e instanceof ApiError ? e.body?.error : 'unknown';
       toast({ title: '計分失敗', description: reason, variant: 'destructive' });
-    }
+    });
   }
 
   const isCompleted = match.status === 'completed';
   const isPlaying = !isCompleted && (match.scoreA > 0 || match.scoreB > 0);
 
   return (
-    <Card
-      className={`flex flex-wrap items-center gap-3 p-3 text-sm ${
-        isCompleted ? 'border-emerald-300 bg-emerald-50' : ''
-      }`}
-    >
-      <Badge variant="outline" className="text-xs">{match.group.name}#{match.matchOrder}</Badge>
-      {match.court && <Badge variant="outline" className="text-xs">{match.court.name}</Badge>}
-      <span className="min-w-[8rem]">{pairLabel(match.pairA)}</span>
-      <Input
-        className="h-8 w-16 text-center"
-        type="number"
-        min={0}
-        max={30}
-        value={a}
-        onChange={(e) => setA(e.target.value)}
-      />
-      <span>-</span>
-      <Input
-        className="h-8 w-16 text-center"
-        type="number"
-        min={0}
-        max={30}
-        value={b}
-        onChange={(e) => setB(e.target.value)}
-      />
-      <span className="min-w-[8rem]">{pairLabel(match.pairB)}</span>
-      <Button size="sm" onClick={save}>
-        儲存
-      </Button>
-      {isCompleted ? (
-        <Badge className="ml-auto bg-emerald-600 text-xs hover:bg-emerald-600">已完成</Badge>
-      ) : isPlaying ? (
-        <Badge className="ml-auto bg-amber-500 text-xs hover:bg-amber-500">比賽進行中</Badge>
-      ) : (
-        <Badge variant="secondary" className="ml-auto text-xs">未開賽</Badge>
-      )}
+    <Card className={`space-y-3 p-3 ${isCompleted ? 'border-emerald-300 bg-emerald-50' : ''}`}>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <Badge variant="outline">{match.group.name}#{match.matchOrder}</Badge>
+        {match.court && <Badge variant="outline">{match.court.name}</Badge>}
+        {isCompleted ? (
+          <Badge className="ml-auto bg-emerald-600 hover:bg-emerald-600">已完成</Badge>
+        ) : isPlaying ? (
+          <Badge className="ml-auto bg-amber-500 hover:bg-amber-500">比賽進行中</Badge>
+        ) : (
+          <Badge variant="secondary" className="ml-auto">未開賽</Badge>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {(['A', 'B'] as const).map((side) => {
+          const score = side === 'A' ? a : b;
+          const pair = side === 'A' ? match.pairA : match.pairB;
+          return (
+            <div key={side} className="flex flex-col items-center gap-2">
+              <div className="text-center text-sm font-medium">{pairLabel(pair)}</div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-12 w-12 text-2xl"
+                  onClick={() => bump(side, -1)}
+                  aria-label="-1"
+                >
+                  −
+                </Button>
+                <div className="w-14 text-center text-4xl font-bold tabular-nums">{score}</div>
+                <Button
+                  size="icon"
+                  className="h-12 w-12 text-2xl"
+                  onClick={() => bump(side, +1)}
+                  aria-label="+1"
+                >
+                  +
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </Card>
   );
 }

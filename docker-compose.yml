@@ -1,68 +1,90 @@
 services:
 
-  # ──────────────────────────────────────────────────────────────
-  # nginx：反向代理，對外 port 由 HTTP_PORT 設定（預設 8080）
-  # ──────────────────────────────────────────────────────────────
+  # ------------------------------------------------------------
+  # nginx: reverse proxy, host port 8000
+  # ------------------------------------------------------------
   nginx:
-    image: nginx:alpine
+    image: badminton-game-nginx:latest
     ports:
-      - "${HTTP_PORT:-8080}:80"
-    volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - "8000:80"
     depends_on:
       - app
     restart: unless-stopped
     networks:
-      - badminton-net
+      - appnet
 
-  # ──────────────────────────────────────────────────────────────
-  # app：Next.js 應用（standalone 模式）
-  # ──────────────────────────────────────────────────────────────
+  # ------------------------------------------------------------
+  # app: Next.js application
+  # ------------------------------------------------------------
   app:
-    build: .
-    env_file:
-      - .env
+    # QNAP Container Station cannot build; uses pre-loaded image.
+    # Build first on Ubuntu:
+    #   docker build -t badminton-game-app:latest .
+    image: badminton-game-app:latest
     environment:
-      # 覆寫 DATABASE_URL，強制走 docker 內網 hostname
-      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public"
+      DATABASE_URL: "postgresql://app:app@db:5432/badminton?schema=public"
+      ADMIN_PASSWORD: "123456"
+      SESSION_SECRET: "dev-secret-must-be-32-chars-or-more-xxxxxxxxxxxxx"
+      PORT: "3000"
       NODE_ENV: production
     volumes:
-      # 持久化上傳的圖片到 named volume（避免 bind mount 的權限問題）
+      # Persist uploaded images to a named volume (avoids bind-mount perms).
       - uploads_data:/app/data/uploads
     expose:
       - "3000"
+    # QNAP legacy compose parser only accepts array-form depends_on.
+    # app may start before db is ready; restart: unless-stopped retries.
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     restart: unless-stopped
     networks:
-      - badminton-net
+      - appnet
 
-  # ──────────────────────────────────────────────────────────────
-  # db：PostgreSQL 16，只在 docker 內網暴露 5432
-  # ──────────────────────────────────────────────────────────────
+  # ------------------------------------------------------------
+  # db: PostgreSQL 16, only exposed inside the docker network
+  # ------------------------------------------------------------
   db:
     image: postgres:16-alpine
+    # privileged: true grants all Linux capabilities and bypasses the
+    # default seccomp/AppArmor profiles. Diagnostic to check whether
+    # QNAP Container Station's default security profile is what blocks
+    # postgres initdb with EPERM on postmaster.pid and pg_wal writes.
+    # If this finally lets initdb finish, the root cause is confirmed
+    # security-profile related and we can decide whether to accept the
+    # cost or switch to an external DB.
+    privileged: true
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: badminton
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - pgdata:/var/lib/postgresql/data
     expose:
       - "5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U app -d badminton"]
       interval: 5s
       timeout: 3s
       retries: 10
     restart: unless-stopped
     networks:
-      - badminton-net
+      - appnet
+
+  # ------------------------------------------------------------
+  # cloudflared: Cloudflare Zero Trust Tunnel
+  # Tunnel service URL http://nginx:80
+  # ------------------------------------------------------------
+  cloudflared:
+    image: docker.996.ninja/cloudflare/cloudflared:latest-data-1
+    networks:
+      - appnet
+    entrypoint: ["cloudflared"]
+    command: tunnel --no-autoupdate run --token eyJhIjoiZGY5Y2EwMzMzNmEwMjFkNDJkYzg3NDA0NmU4ZmQzZGEiLCJ0IjoiYjZhMTgxYzAtMGFjMC00YzEyLWEyOWUtNjk5MmNjNjkyY2Y0IiwicyI6Ik56aGpNVGc1TkdJdE5HUmxPUzAwTVdNeUxXSmtaamt0T0RVMU9XTTFaREpqTlRKaCJ9
+    restart: unless-stopped
 
 networks:
-  badminton-net:
-    driver: bridge
+  appnet:
 
 volumes:
   pgdata:

@@ -28,12 +28,18 @@ export function SectionMatches({ tournament, revision }: { tournament: Tournamen
     api<MatchFull[]>(`/api/tournaments/${tournament.id}/matches`).then(setMatches);
   }, [tournament.id, revision]);
 
+  const ERR: Record<string, string> = {
+    no_matches_to_generate: '每組至少要有 2 對才能產生對戰',
+    no_groups: '尚未分組',
+  };
+
   async function generate() {
     try {
       await api(`/api/tournaments/${tournament.id}/matches/generate`, { method: 'POST' });
       toast({ title: '已產生賽程' });
     } catch (e: any) {
-      toast({ title: '無法產生賽程', description: e.body?.error, variant: 'destructive' });
+      const code = e.body?.error;
+      toast({ title: '無法產生賽程', description: ERR[code] ?? code, variant: 'destructive' });
     }
   }
 

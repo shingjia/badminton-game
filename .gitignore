@@ -37,6 +37,12 @@ yarn-error.log*
 .env.local
 .env*.local
 
+# QNAP 部署用：含 inlined secrets，不進 git
+docker-compose.yml
+
+# QNAP image bundle 產出目錄
+/dist
+
 # vercel
 .vercel
 

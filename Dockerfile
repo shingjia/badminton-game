@@ -86,8 +86,10 @@ COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 # 之後 nextjs (uid 1001) 才寫得進來。
 RUN mkdir -p /app/data/uploads
 
-# 設定目錄擁有者
-RUN chown -R nextjs:nodejs /app && chmod +x /app/docker-entrypoint.sh
+# 設定目錄擁有者；順便 strip CR 避免 Windows CRLF 行尾讓 alpine sh 炸掉
+RUN chown -R nextjs:nodejs /app \
+ && sed -i 's/\r$//' /app/docker-entrypoint.sh \
+ && chmod +x /app/docker-entrypoint.sh
 
 USER nextjs
 
