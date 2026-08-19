@@ -105,14 +105,17 @@ match[k] = { pairA: partnershipA[k], pairB: partnershipB[k] }   // k = 0..n-1
 ## UI 改動範圍
 
 1. `create-tournament-dialog.tsx`：新增賽制選擇（友誼賽／會內賽），預設友誼賽。
-2. `section-groups.tsx`：`format === 'club'` 時隱藏配對三按鈕（隨機重抽／依棒次配對／依等級配對／鎖定配對），組卡片只顯示球員名單 + 棒次編輯。
-3. `section-matches.tsx`：「產生對戰＋分配場地」按鈕文案不變，後端依 `tournament.format` 走不同的賽程產生邏輯。
-4. `standings-tab.tsx` / 排名 API：依 `format` 切換 Pair 排名 / 個人排名。
-5. `section-players.tsx`：棒次（seed）輸入已經在分組頁面有了（上一輪加的），會內賽一樣可以用，不用新增介面。
+2. `section-groups.tsx`（admin）：`format === 'club'` 時隱藏配對三按鈕（隨機重抽／依棒次配對／依等級配對／鎖定配對），組卡片只顯示球員名單 + 棒次編輯。
+3. `section-matches.tsx`（admin）：「產生對戰＋分配場地」按鈕文案不變，後端依 `tournament.format` 走不同的賽程產生邏輯。
+4. `standings-tab.tsx`（viewer）／排名 API：依 `format` 切換 Pair 排名 / 個人排名。
+5. `section-players.tsx`（admin）：棒次（seed）輸入已經在分組頁面有了（上一輪加的），會內賽一樣可以用，不用新增介面。
+6. `groups-tab.tsx`（viewer）：`format === 'club'` 時不顯示組卡片裡的「配對」清單——那是把該組所有 Pair（每場比賽都會產生新的一次性 Pair）攤平列出來，會內賽會列出一長串、同一人重複出現在好幾個「配對」，看不出意義。友誼賽不受影響。
+7. `matches-tab.tsx`（viewer）：`format === 'club'` 時檢視切換只留「分組列表」「場地列表」，隱藏「循環圖」。`MatchGraph` 元件假設少數幾支固定隊伍兩兩對戰一輪（把所有出現過的 Pair 當頂點、任兩頂點間都畫線），會內賽每場都是全新一次性搭檔、也不是兩兩對戰過一輪，套用這個元件頂點暴增、線幾乎都是沒排過的假 pending 線，圖會又亂又錯。不另外設計新圖表，先隱藏就好。
 
 ## 已知的簡化 / 之後可以再加
 
 - 兩隊以外的分隊方式（3 隊以上）不支援，需要的話再設計「誰打誰」的規則。
+- 會內賽沒有「循環圖」視覺化，之後真的需要再另外設計一個適合輪轉賽制的圖（例如以人為頂點、畫出每個人打過的場次連線）。
 - 回合著色只保證「同回合不衝突」，沒有額外優化最少回合數以外的排場地策略（例如優先讓同一人的兩場比賽間隔久一點休息）——先求正確，體感不好再調。
 - 個人排名的 SQL／查詢寫法：實作時再決定是走 Prisma 聚合還是 raw SQL view，這份文件只定義計算規則，不綁定實作手法。
 
