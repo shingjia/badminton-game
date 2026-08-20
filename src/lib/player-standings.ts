@@ -97,3 +97,55 @@ function rankGroup(rows: UnrankedRow[]): PlayerStandingRow[] {
   });
   return result;
 }
+
+export type GroupStandingRow = {
+  groupId: string;
+  wins: number;
+  losses: number;
+  played: number;
+  pointDiff: number;
+  pointsFor: number;
+  pointsAgainst: number;
+  rank: number;
+};
+
+/**
+ * Ranks a club-format tournament's GROUPS against each other (not players
+ * within a group) — e.g. "Group A did best overall". A group's totals are
+ * just the sum of every one of its players' individual stats (every match
+ * played by anyone in the group counts once toward the group's wins/losses/
+ * points, on top of already counting toward that player's own record).
+ *
+ * Order: wins desc, then points-for desc, then points-against asc. Ranks
+ * use SQL RANK() semantics (ties share a rank, next rank skips ahead).
+ */
+export function computeGroupStandings(matches: MatchResult[]): GroupStandingRow[] {
+  const byGroup = new Map<string, Omit<GroupStandingRow, 'rank'>>();
+  for (const p of computePlayerStandings(matches)) {
+    let g = byGroup.get(p.groupId);
+    if (!g) {
+      g = { groupId: p.groupId, wins: 0, losses: 0, played: 0, pointDiff: 0, pointsFor: 0, pointsAgainst: 0 };
+      byGroup.set(p.groupId, g);
+    }
+    g.wins += p.wins;
+    g.losses += p.losses;
+    g.played += p.played;
+    g.pointDiff += p.pointDiff;
+    g.pointsFor += p.pointsFor;
+    g.pointsAgainst += p.pointsAgainst;
+  }
+
+  const sorted = [...byGroup.values()].sort(
+    (a, b) => b.wins - a.wins || b.pointsFor - a.pointsFor || a.pointsAgainst - b.pointsAgainst,
+  );
+  const result: GroupStandingRow[] = [];
+  let rank = 0;
+  let prevKey: string | null = null;
+  sorted.forEach((g, i) => {
+    const key = `${g.wins}|${g.pointsFor}|${g.pointsAgainst}`;
+    if (key !== prevKey) rank = i + 1;
+    prevKey = key;
+    result.push({ ...g, rank });
+  });
+  return result;
+}

@@ -6,9 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { api } from '@/lib/api-client';
 import type { Group, Player, Pair } from '@prisma/client';
 
-type Row = {
-  pair_id?: string;
-  player_id?: string;
+type PairRow = {
+  pair_id: string;
   group_id: string;
   wins: number;
   losses: number;
@@ -18,8 +17,29 @@ type Row = {
   points_against: number;
   rank: number;
 };
-type GroupBlock = { groupId: string; standings: Row[] };
+type GroupBlock = { groupId: string; standings: PairRow[] };
+
+// 會內賽排名比的是組跟組，一份賽事只有一張表，沒有 pair/player 概念。
+type GroupRow = {
+  group_id: string;
+  wins: number;
+  losses: number;
+  played: number;
+  point_diff: number;
+  points_for: number;
+  points_against: number;
+  rank: number;
+};
+
 type GroupWithRelations = Group & { players: Player[]; pairs: Pair[] };
+
+function medal(rank: number, played: number) {
+  const hasMedal = played > 0 && rank <= 3;
+  if (!hasMedal) return { className: '', label: <span className="text-muted-foreground">{rank}</span> };
+  if (rank === 1) return { className: 'bg-amber-50', label: <span className="font-bold text-amber-700">🥇 冠軍</span> };
+  if (rank === 2) return { className: 'bg-slate-50', label: <span className="font-bold text-slate-700">🥈 亞軍</span> };
+  return { className: 'bg-orange-50', label: <span className="font-bold text-orange-700">🥉 季軍</span> };
+}
 
 export function StandingsTab({
   tournamentId,
@@ -31,23 +51,71 @@ export function StandingsTab({
   format: 'friendly' | 'club';
 }) {
   const [blocks, setBlocks] = useState<GroupBlock[]>([]);
+  const [groupRows, setGroupRows] = useState<GroupRow[]>([]);
   const [groups, setGroups] = useState<GroupWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      api<GroupBlock[]>(`/api/tournaments/${tournamentId}/standings`),
+      api<GroupBlock[] | GroupRow[]>(`/api/tournaments/${tournamentId}/standings`),
       api<GroupWithRelations[]>(`/api/tournaments/${tournamentId}/groups`),
     ])
       .then(([s, g]) => {
-        setBlocks(s);
+        if (format === 'club') setGroupRows(s as GroupRow[]);
+        else setBlocks(s as GroupBlock[]);
         setGroups(g);
       })
       .finally(() => setLoading(false));
-  }, [tournamentId, revision]);
+  }, [tournamentId, revision, format]);
 
-  if (loading && blocks.length === 0) return <p className="py-6 text-muted-foreground">載入中…</p>;
+  const groupName = (id: string) => groups.find((g) => g.id === id)?.name ?? '';
+
+  if (loading && blocks.length === 0 && groupRows.length === 0) {
+    return <p className="py-6 text-muted-foreground">載入中…</p>;
+  }
+
+  if (format === 'club') {
+    if (groupRows.length === 0) return <p className="py-6 text-muted-foreground">尚無排名資料</p>;
+    return (
+      <div className="py-4">
+        <Card className="p-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-24">名次</TableHead>
+                <TableHead>組別</TableHead>
+                <TableHead className="text-right">勝</TableHead>
+                <TableHead className="text-right">負</TableHead>
+                <TableHead className="text-right">場次</TableHead>
+                <TableHead className="text-right">得分差</TableHead>
+                <TableHead className="text-right">總得分</TableHead>
+                <TableHead className="text-right">總失分</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {groupRows.map((r) => {
+                const m = medal(r.rank, r.played);
+                return (
+                  <TableRow key={r.group_id} className={m.className}>
+                    <TableCell className="font-medium whitespace-nowrap">{m.label}</TableCell>
+                    <TableCell>{groupName(r.group_id)} 組</TableCell>
+                    <TableCell className="text-right">{r.wins}</TableCell>
+                    <TableCell className="text-right">{r.losses}</TableCell>
+                    <TableCell className="text-right">{r.played}</TableCell>
+                    <TableCell className="text-right">{r.point_diff}</TableCell>
+                    <TableCell className="text-right">{r.points_for}</TableCell>
+                    <TableCell className="text-right">{r.points_against}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+      </div>
+    );
+  }
+
   if (blocks.length === 0) return <p className="py-6 text-muted-foreground">尚無排名資料</p>;
 
   const pairLabel = (pairId: string) => {
@@ -60,17 +128,6 @@ export function StandingsTab({
     }
     return pairId.slice(0, 6);
   };
-  const playerLabel = (playerId: string) => {
-    for (const g of groups) {
-      const p = g.players.find((pl) => pl.id === playerId);
-      if (p) return p.name;
-    }
-    return playerId.slice(0, 6);
-  };
-  const subjectLabel = (r: Row) =>
-    format === 'club' ? playerLabel(r.player_id!) : pairLabel(r.pair_id!);
-  const subjectKey = (r: Row) => (format === 'club' ? r.player_id! : r.pair_id!);
-  const groupName = (id: string) => groups.find((g) => g.id === id)?.name ?? '';
 
   return (
     <div className="space-y-6 py-4">
@@ -81,7 +138,7 @@ export function StandingsTab({
             <TableHeader>
               <TableRow>
                 <TableHead className="w-24">名次</TableHead>
-                <TableHead>{format === 'club' ? '球員' : '配對'}</TableHead>
+                <TableHead>配對</TableHead>
                 <TableHead className="text-right">勝</TableHead>
                 <TableHead className="text-right">負</TableHead>
                 <TableHead className="text-right">場次</TableHead>
@@ -92,39 +149,18 @@ export function StandingsTab({
             </TableHeader>
             <TableBody>
               {b.standings.map((r) => {
-                const hasMedal = r.played > 0 && (r.rank === 1 || r.rank === 2 || r.rank === 3);
+                const m = medal(r.rank, r.played);
                 return (
-                <TableRow
-                  key={subjectKey(r)}
-                  className={
-                    hasMedal && r.rank === 1
-                      ? 'bg-amber-50'
-                      : hasMedal && r.rank === 2
-                        ? 'bg-slate-50'
-                        : hasMedal && r.rank === 3
-                          ? 'bg-orange-50'
-                          : ''
-                  }
-                >
-                  <TableCell className="font-medium whitespace-nowrap">
-                    {hasMedal && r.rank === 1 ? (
-                      <span className="font-bold text-amber-700">🥇 冠軍</span>
-                    ) : hasMedal && r.rank === 2 ? (
-                      <span className="font-bold text-slate-700">🥈 亞軍</span>
-                    ) : hasMedal && r.rank === 3 ? (
-                      <span className="font-bold text-orange-700">🥉 季軍</span>
-                    ) : (
-                      <span className="text-muted-foreground">{r.rank}</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{subjectLabel(r)}</TableCell>
-                  <TableCell className="text-right">{r.wins}</TableCell>
-                  <TableCell className="text-right">{r.losses}</TableCell>
-                  <TableCell className="text-right">{r.played}</TableCell>
-                  <TableCell className="text-right">{r.point_diff}</TableCell>
-                  <TableCell className="text-right">{r.points_for}</TableCell>
-                  <TableCell className="text-right">{r.points_against}</TableCell>
-                </TableRow>
+                  <TableRow key={r.pair_id} className={m.className}>
+                    <TableCell className="font-medium whitespace-nowrap">{m.label}</TableCell>
+                    <TableCell>{pairLabel(r.pair_id)}</TableCell>
+                    <TableCell className="text-right">{r.wins}</TableCell>
+                    <TableCell className="text-right">{r.losses}</TableCell>
+                    <TableCell className="text-right">{r.played}</TableCell>
+                    <TableCell className="text-right">{r.point_diff}</TableCell>
+                    <TableCell className="text-right">{r.points_for}</TableCell>
+                    <TableCell className="text-right">{r.points_against}</TableCell>
+                  </TableRow>
                 );
               })}
             </TableBody>
