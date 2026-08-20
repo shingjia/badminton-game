@@ -1,5 +1,6 @@
 export type MatchResult = {
-  groupId: string;
+  pairAGroupId: string;
+  pairBGroupId: string;
   status: 'pending' | 'completed';
   scoreA: number;
   scoreB: number;
@@ -27,6 +28,10 @@ type UnrankedRow = Omit<PlayerStandingRow, 'rank'>;
  * player's own perspective (their side's score vs the other side's) is
  * tallied individually, so the same player accumulates stats across every
  * match they appeared in, regardless of who they were partnered with.
+ *
+ * A match now spans two different groups (group A's roster plays group
+ * B's), so each side's players are attributed to *their own* group
+ * (pairAGroupId / pairBGroupId) — never to the other side's group.
  */
 export function computePlayerStandings(matches: MatchResult[]): PlayerStandingRow[] {
   const byPlayer = new Map<string, UnrankedRow>();
@@ -54,8 +59,8 @@ export function computePlayerStandings(matches: MatchResult[]): PlayerStandingRo
 
   for (const m of matches) {
     if (m.status !== 'completed') continue;
-    tally(m.pairAPlayerIds, m.groupId, m.scoreA, m.scoreB);
-    tally(m.pairBPlayerIds, m.groupId, m.scoreB, m.scoreA);
+    tally(m.pairAPlayerIds, m.pairAGroupId, m.scoreA, m.scoreB);
+    tally(m.pairBPlayerIds, m.pairBGroupId, m.scoreB, m.scoreA);
   }
 
   const byGroup = new Map<string, UnrankedRow[]>();

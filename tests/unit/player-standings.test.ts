@@ -6,7 +6,8 @@ describe('computePlayerStandings', () => {
     // Alice partners Bob in match 1 (win), partners Carol in match 2 (loss).
     const matches: MatchResult[] = [
       {
-        groupId: 'g1',
+        pairAGroupId: 'g1',
+        pairBGroupId: 'g1',
         status: 'completed',
         scoreA: 21,
         scoreB: 15,
@@ -14,7 +15,8 @@ describe('computePlayerStandings', () => {
         pairBPlayerIds: ['dave', 'erin'],
       },
       {
-        groupId: 'g1',
+        pairAGroupId: 'g1',
+        pairBGroupId: 'g1',
         status: 'completed',
         scoreA: 10,
         scoreB: 21,
@@ -35,7 +37,8 @@ describe('computePlayerStandings', () => {
   it('ignores matches that are not completed', () => {
     const matches: MatchResult[] = [
       {
-        groupId: 'g1',
+        pairAGroupId: 'g1',
+        pairBGroupId: 'g1',
         status: 'pending',
         scoreA: 5,
         scoreB: 3,
@@ -49,7 +52,8 @@ describe('computePlayerStandings', () => {
 
   it('ranks within each group, ties share a rank (SQL RANK() semantics)', () => {
     const win = (a: string, b: string, c: string, d: string): MatchResult => ({
-      groupId: 'g1',
+      pairAGroupId: 'g1',
+      pairBGroupId: 'g1',
       status: 'completed',
       scoreA: 21,
       scoreB: 10,
@@ -68,7 +72,8 @@ describe('computePlayerStandings', () => {
   it('keeps groups separate', () => {
     const matches: MatchResult[] = [
       {
-        groupId: 'g1',
+        pairAGroupId: 'g1',
+        pairBGroupId: 'g1',
         status: 'completed',
         scoreA: 21,
         scoreB: 10,
@@ -76,7 +81,8 @@ describe('computePlayerStandings', () => {
         pairBPlayerIds: ['carol', 'dave'],
       },
       {
-        groupId: 'g2',
+        pairAGroupId: 'g2',
+        pairBGroupId: 'g2',
         status: 'completed',
         scoreA: 21,
         scoreB: 10,
@@ -88,6 +94,28 @@ describe('computePlayerStandings', () => {
     expect(rows.find((r) => r.playerId === 'alice')!.groupId).toBe('g1');
     expect(rows.find((r) => r.playerId === 'erin')!.groupId).toBe('g2');
   });
+
+  it('attributes each side to its OWN group, not the other side\'s (cross-group match)', () => {
+    // group A beats group B — this is the new inter-group shape, unlike
+    // every test above where both sides happen to share one group.
+    const matches: MatchResult[] = [
+      {
+        pairAGroupId: 'A',
+        pairBGroupId: 'B',
+        status: 'completed',
+        scoreA: 21,
+        scoreB: 10,
+        pairAPlayerIds: ['a1', 'a2'],
+        pairBPlayerIds: ['b1', 'b2'],
+      },
+    ];
+    const rows = computePlayerStandings(matches);
+    const byId = Object.fromEntries(rows.map((r) => [r.playerId, r]));
+    expect(byId.a1.groupId).toBe('A');
+    expect(byId.a1.wins).toBe(1);
+    expect(byId.b1.groupId).toBe('B');
+    expect(byId.b1.losses).toBe(1);
+  });
 });
 
 describe('computeGroupStandings', () => {
@@ -95,7 +123,8 @@ describe('computeGroupStandings', () => {
     // g1: one match, alice+bob beat carol+dave 21-15.
     const matches: MatchResult[] = [
       {
-        groupId: 'g1',
+        pairAGroupId: 'g1',
+        pairBGroupId: 'g1',
         status: 'completed',
         scoreA: 21,
         scoreB: 15,
@@ -115,7 +144,8 @@ describe('computeGroupStandings', () => {
 
   it('ranks groups against each other: wins desc, then points-for desc, then points-against asc', () => {
     const match = (groupId: string, scoreA: number, scoreB: number): MatchResult => ({
-      groupId,
+      pairAGroupId: groupId,
+      pairBGroupId: groupId,
       status: 'completed',
       scoreA,
       scoreB,
@@ -123,14 +153,9 @@ describe('computeGroupStandings', () => {
       pairBPlayerIds: [`${groupId}-b1`, `${groupId}-b2`],
     });
     const matches: MatchResult[] = [
-      // g1: 2 matches, both decisive wins for side A -> most total wins.
       match('g1', 21, 5),
       match('g1', 21, 5),
-      // g2: 1 match, high-scoring -> fewer wins than g1 but should still
-      // out-rank g3 on points if wins ever tie (they don't here, but the
-      // points fields are checked directly below).
       match('g2', 21, 19),
-      // g3: 1 match, blowout loss for side A -> fewest wins, worst points.
       match('g3', 5, 21),
     ];
     const rows = computeGroupStandings(matches);
@@ -143,20 +168,41 @@ describe('computeGroupStandings', () => {
 
   it('breaks a wins tie by total points-for, then points-against', () => {
     const match = (groupId: string, scoreA: number, scoreB: number): MatchResult => ({
-      groupId,
+      pairAGroupId: groupId,
+      pairBGroupId: groupId,
       status: 'completed',
       scoreA,
       scoreB,
       pairAPlayerIds: [`${groupId}-a1`, `${groupId}-a2`],
       pairBPlayerIds: [`${groupId}-b1`, `${groupId}-b2`],
     });
-    // Both groups: 1 match, 1 win each (2 wins group-wide) — tied on wins.
-    // g1's winning side scored more points-for than g2's.
     const matches: MatchResult[] = [match('g1', 21, 18), match('g2', 21, 10)];
     const rows = computeGroupStandings(matches);
-    expect(rows[0].groupId).toBe('g1'); // higher points-for wins the tie
+    expect(rows[0].groupId).toBe('g1');
     expect(rows[0].rank).toBe(1);
     expect(rows[1].groupId).toBe('g2');
     expect(rows[1].rank).toBe(2);
+  });
+
+  it('attributes wins/losses to each side\'s own group only (regression: cross-group contamination)', () => {
+    // group A beats group B: A's 2 players both win, B's 2 players both lose.
+    const matches: MatchResult[] = [
+      {
+        pairAGroupId: 'A',
+        pairBGroupId: 'B',
+        status: 'completed',
+        scoreA: 21,
+        scoreB: 10,
+        pairAPlayerIds: ['a1', 'a2'],
+        pairBPlayerIds: ['b1', 'b2'],
+      },
+    ];
+    const rows = computeGroupStandings(matches);
+    const gA = rows.find((r) => r.groupId === 'A')!;
+    const gB = rows.find((r) => r.groupId === 'B')!;
+    expect(gA.wins).toBe(2);
+    expect(gA.losses).toBe(0);
+    expect(gB.wins).toBe(0);
+    expect(gB.losses).toBe(2);
   });
 });
