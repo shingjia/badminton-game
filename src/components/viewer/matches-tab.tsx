@@ -27,6 +27,28 @@ function pairingOf(m: MatchFull) {
   return { key: `${first.id}-${second.id}`, label: `${first.name} 組 vs ${second.name} 組` };
 }
 
+function PairingCard({
+  block,
+  format,
+}: {
+  block: { label: string; matches: MatchFull[] };
+  format: 'friendly' | 'club';
+}) {
+  const completed = block.matches.filter((m) => m.status === 'completed').length;
+  const total = block.matches.length;
+  return (
+    <Card className="p-4">
+      <div className="mb-3 flex items-baseline justify-between">
+        <div className="text-lg font-semibold">{block.label}</div>
+        <div className="text-xs text-muted-foreground">
+          {completed} / {total} 場已完成
+        </div>
+      </div>
+      <MatchList matches={block.matches} showGroup={false} format={format} />
+    </Card>
+  );
+}
+
 type ViewMode = 'graph' | 'group' | 'court';
 
 export function MatchesTab({
@@ -62,6 +84,26 @@ export function MatchesTab({
     block.matches.push(m);
     byGroup.set(key, block);
   }
+
+  // Club format's "分組列表" nests pairing blocks one level deeper, under
+  // the circulation (wave) they belong to — a pairing only ever plays in
+  // one wave, so grouping by its first match's roundNumber is exact, not
+  // a heuristic.
+  type WaveBlock = {
+    wave: number;
+    label: string;
+    entries: [string, { label: string; matches: MatchFull[] }][];
+  };
+  const waveMap = new Map<number, WaveBlock>();
+  if (format === 'club') {
+    for (const entry of byGroup.entries()) {
+      const wave = entry[1].matches[0]?.roundNumber ?? 0;
+      const wb = waveMap.get(wave) ?? { wave, label: `第 ${wave} 循環`, entries: [] };
+      wb.entries.push(entry);
+      waveMap.set(wave, wb);
+    }
+  }
+  const waveBlocks = Array.from(waveMap.values()).sort((a, b) => a.wave - b.wave);
 
   // Group by court
   type CourtBlock = { key: string; courtName: string; courtOrder: number; matches: MatchFull[] };
@@ -135,21 +177,18 @@ export function MatchesTab({
         })}
 
       {view === 'group' &&
-        [...byGroup.entries()].map(([key, block]) => {
-          const completed = block.matches.filter((m) => m.status === 'completed').length;
-          const total = block.matches.length;
-          return (
-            <Card key={key} className="p-4">
-              <div className="mb-3 flex items-baseline justify-between">
-                <div className="text-lg font-semibold">{block.label}</div>
-                <div className="text-xs text-muted-foreground">
-                  {completed} / {total} 場已完成
-                </div>
+        (format === 'club'
+          ? waveBlocks.map((wb) => (
+              <div key={wb.wave} className="space-y-4">
+                <div className="text-xl font-bold">{wb.label}</div>
+                {wb.entries.map(([key, block]) => (
+                  <PairingCard key={key} block={block} format={format} />
+                ))}
               </div>
-              <MatchList matches={block.matches} showGroup={false} format={format} />
-            </Card>
-          );
-        })}
+            ))
+          : [...byGroup.entries()].map(([key, block]) => (
+              <PairingCard key={key} block={block} format={format} />
+            )))}
 
       {view === 'court' &&
         byCourt.map((c) => {
