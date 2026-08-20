@@ -8,7 +8,7 @@ import { api } from '@/lib/api-client';
 import type { Match, Pair, Player, Court, Group } from '@prisma/client';
 import { MatchGraph } from '@/components/viewer/match-graph';
 
-type PairWithPlayers = Pair & { player1: Player; player2: Player };
+type PairWithPlayers = Pair & { player1: Player; player2: Player; group: Group };
 type MatchFull = Match & {
   pairA: PairWithPlayers;
   pairB: PairWithPlayers;
@@ -18,6 +18,13 @@ type MatchFull = Match & {
 
 function pairLabel(p: PairWithPlayers) {
   return `${p.player1.name} / ${p.player2.name}`;
+}
+
+function pairingOf(m: MatchFull) {
+  const [first, second] = [m.pairA.group, m.pairB.group].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+  return { key: `${first.id}-${second.id}`, label: `${first.name} 組 vs ${second.name} 組` };
 }
 
 type ViewMode = 'graph' | 'group' | 'court';
@@ -45,13 +52,15 @@ export function MatchesTab({
   if (loading && matches.length === 0) return <p className="py-6 text-muted-foreground">載入中…</p>;
   if (matches.length === 0) return <p className="py-6 text-muted-foreground">尚無賽程</p>;
 
-  // Group by group
-  const byGroup = new Map<string, MatchFull[]>();
+  // Group by group (friendly) or by pairing (club — a match spans two
+  // different groups, so grouping by Match.group alone would only show
+  // one side and hide who the opponent is).
+  const byGroup = new Map<string, { label: string; matches: MatchFull[] }>();
   for (const m of matches) {
-    const k = m.group.name;
-    const arr = byGroup.get(k) ?? [];
-    arr.push(m);
-    byGroup.set(k, arr);
+    const { key, label } = format === 'club' ? pairingOf(m) : { key: m.group.name, label: `${m.group.name} 組` };
+    const block = byGroup.get(key) ?? { label, matches: [] };
+    block.matches.push(m);
+    byGroup.set(key, block);
   }
 
   // Group by court
@@ -107,37 +116,37 @@ export function MatchesTab({
       </div>
 
       {view === 'graph' &&
-        [...byGroup.entries()].map(([gname, ms]) => {
-          const completed = ms.filter((m) => m.status === 'completed').length;
-          const total = ms.length;
+        [...byGroup.entries()].map(([key, block]) => {
+          const completed = block.matches.filter((m) => m.status === 'completed').length;
+          const total = block.matches.length;
           return (
-            <Card key={gname} className="p-4">
+            <Card key={key} className="p-4">
               <div className="mb-3 flex items-center justify-between">
                 <span className="inline-block rounded-lg bg-slate-800 px-4 py-1.5 text-xl font-bold text-white shadow">
-                  {gname} 組
+                  {block.label}
                 </span>
                 <div className="text-xs text-muted-foreground">
                   {completed} / {total} 場已完成
                 </div>
               </div>
-              <MatchGraph matches={ms} />
+              <MatchGraph matches={block.matches} />
             </Card>
           );
         })}
 
       {view === 'group' &&
-        [...byGroup.entries()].map(([gname, ms]) => {
-          const completed = ms.filter((m) => m.status === 'completed').length;
-          const total = ms.length;
+        [...byGroup.entries()].map(([key, block]) => {
+          const completed = block.matches.filter((m) => m.status === 'completed').length;
+          const total = block.matches.length;
           return (
-            <Card key={gname} className="p-4">
+            <Card key={key} className="p-4">
               <div className="mb-3 flex items-baseline justify-between">
-                <div className="text-lg font-semibold">{gname} 組</div>
+                <div className="text-lg font-semibold">{block.label}</div>
                 <div className="text-xs text-muted-foreground">
                   {completed} / {total} 場已完成
                 </div>
               </div>
-              <MatchList matches={ms} showGroup={false} />
+              <MatchList matches={block.matches} showGroup={false} format={format} />
             </Card>
           );
         })}
@@ -154,7 +163,7 @@ export function MatchesTab({
                   {completed} / {total} 場已完成
                 </div>
               </div>
-              <MatchList matches={c.matches} showGroup />
+              <MatchList matches={c.matches} showGroup format={format} />
             </Card>
           );
         })}
@@ -179,7 +188,15 @@ export function MatchesTab({
   );
 }
 
-function MatchList({ matches, showGroup }: { matches: MatchFull[]; showGroup: boolean }) {
+function MatchList({
+  matches,
+  showGroup,
+  format,
+}: {
+  matches: MatchFull[];
+  showGroup: boolean;
+  format: 'friendly' | 'club';
+}) {
   return (
     <div className="grid gap-2 md:grid-cols-2">
       {matches.map((m) => {
@@ -200,7 +217,7 @@ function MatchList({ matches, showGroup }: { matches: MatchFull[]; showGroup: bo
               <span className="text-muted-foreground">#{m.matchOrder}</span>{' '}
               {showGroup && (
                 <Badge variant="outline" className="mr-1 text-xs">
-                  {m.group.name}
+                  {format === 'club' ? pairingOf(m).label : m.group.name}
                 </Badge>
               )}
               <span className="font-medium">{pairLabel(m.pairA)}</span>
