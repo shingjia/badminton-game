@@ -18,7 +18,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
       include: { pairA: true, pairB: true },
     });
     const results: MatchResult[] = matches.map((m) => ({
-      groupId: m.groupId,
+      pairAGroupId: m.pairA.groupId,
+      pairBGroupId: m.pairB.groupId,
       status: m.status,
       scoreA: m.scoreA,
       scoreB: m.scoreB,
