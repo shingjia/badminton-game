@@ -157,6 +157,22 @@ export function SectionGroups({
     }
   }
 
+  async function confirmGrouping() {
+    try {
+      await api(`/api/tournaments/${tournament.id}/groups/lock`, { method: 'POST' });
+      toast({ title: '分組已確認，可以到「賽程」分頁產生對戰' });
+    } catch (e: any) {
+      const code = e.body?.error;
+      const msg =
+        code === 'players_not_grouped'
+          ? '還有球員沒有被分到任何一組'
+          : code === 'group_too_small'
+            ? '有一組人數少於 2 人'
+            : undefined;
+      toast({ title: '無法確認分組', description: msg ?? code, variant: 'destructive' });
+    }
+  }
+
   return (
     <section id="groups" className="scroll-mt-16">
       <div className="mb-3 flex items-center gap-3">
@@ -175,6 +191,11 @@ export function SectionGroups({
               各組等級均分
             </Button>
           </>
+        )}
+        {canEdit && tournament.format === 'club' && (
+          <Button onClick={confirmGrouping} size="sm">
+            確認分組，開始賽程
+          </Button>
         )}
       </div>
 
@@ -260,7 +281,7 @@ export function SectionGroups({
                 </ul>
               </div>
 
-              {g.pairs.length > 0 && (
+              {tournament.format === 'friendly' && g.pairs.length > 0 && (
                 <div className="mb-3">
                   <div className="mb-1 text-xs font-medium text-muted-foreground">配對</div>
                   <ul className="space-y-1">
@@ -277,7 +298,7 @@ export function SectionGroups({
                 </div>
               )}
 
-              {canEdit && (
+              {canEdit && tournament.format === 'friendly' && (
                 <div className="flex flex-wrap gap-2">
                   {PAIR_METHODS.map((m) => (
                     <Button
