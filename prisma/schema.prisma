@@ -19,11 +19,17 @@ enum MatchStatus {
   completed
 }
 
+enum TournamentFormat {
+  friendly
+  club
+}
+
 model Tournament {
   id            String           @id @default(cuid())
   name          String
   status        TournamentStatus @default(draft)
   groupCount    Int              @default(4)
+  format        TournamentFormat @default(friendly)
   pointsPerGame Int              @default(21)
   bannerIcon    String           @default("🏸")
   bannerColor   String           @default("red")
