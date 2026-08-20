@@ -27,6 +27,35 @@ function pairingOf(m: MatchFull) {
   return { key: `${first.id}-${second.id}`, label: `${first.name} 組 vs ${second.name} 組` };
 }
 
+type Block = { key: string; title: string; order: number; matches: MatchFull[] };
+
+function BlockSection({
+  block,
+  revision,
+  format,
+}: {
+  block: Block;
+  revision: number;
+  format: 'friendly' | 'club';
+}) {
+  const completed = block.matches.filter((m) => m.status === 'completed').length;
+  return (
+    <div>
+      <div className="mb-2 flex items-baseline justify-between">
+        <div className="text-base font-semibold">{block.title}</div>
+        <div className="text-xs text-muted-foreground">
+          {completed} / {block.matches.length} 場已完成
+        </div>
+      </div>
+      <div className="grid gap-2">
+        {block.matches.map((m) => (
+          <ScoreRow key={m.id} match={m} revision={revision} format={format} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 type GroupingMode = 'group' | 'court';
 
 export function SectionScoring({ tournament, revision }: { tournament: Tournament; revision: number }) {
@@ -41,8 +70,6 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
   // Group by group (friendly) or by pairing (club — a match spans two
   // different groups, so grouping by Match.group alone would only show
   // one side and hide who the opponent is).
-  type Block = { key: string; title: string; order: number; matches: MatchFull[] };
-
   const byGroup = new Map<string, Block>();
   for (const m of matches) {
     const p = tournament.format === 'club' ? pairingOf(m) : null;
@@ -63,6 +90,22 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
       a.roundNumber !== b.roundNumber ? a.roundNumber - b.roundNumber : a.matchOrder - b.matchOrder,
     );
   }
+
+  // Club format's "依分組" view nests pairing blocks one level deeper,
+  // under the circulation (wave) they belong to — a pairing only ever
+  // plays in one wave, so grouping by its first match's roundNumber is
+  // exact, not a heuristic.
+  type WaveBlock = { wave: number; title: string; blocks: Block[] };
+  const byWave = new Map<number, WaveBlock>();
+  if (tournament.format === 'club') {
+    for (const b of groupBlocks) {
+      const wave = b.matches[0]?.roundNumber ?? 0;
+      const wb = byWave.get(wave) ?? { wave, title: `第 ${wave} 循環`, blocks: [] };
+      wb.blocks.push(b);
+      byWave.set(wave, wb);
+    }
+  }
+  const waveBlocks = Array.from(byWave.values()).sort((a, b) => a.wave - b.wave);
 
   // Group by court
   const byCourt = new Map<string, Block>();
@@ -111,24 +154,20 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
         </div>
       )}
       <div className="space-y-4 border-l-4 border-l-red-500 pl-4">
-        {blocks.map((b) => {
-          const completed = b.matches.filter((m) => m.status === 'completed').length;
-          return (
-            <div key={b.key}>
-              <div className="mb-2 flex items-baseline justify-between">
-                <div className="text-base font-semibold">{b.title}</div>
-                <div className="text-xs text-muted-foreground">
-                  {completed} / {b.matches.length} 場已完成
+        {mode === 'group' && tournament.format === 'club'
+          ? waveBlocks.map((wb) => (
+              <div key={wb.wave}>
+                <div className="mb-2 text-lg font-semibold">{wb.title}</div>
+                <div className="space-y-4 pl-3">
+                  {wb.blocks.map((b) => (
+                    <BlockSection key={b.key} block={b} revision={revision} format={tournament.format} />
+                  ))}
                 </div>
               </div>
-              <div className="grid gap-2">
-                {b.matches.map((m) => (
-                  <ScoreRow key={m.id} match={m} revision={revision} format={tournament.format} />
-                ))}
-              </div>
-            </div>
-          );
-        })}
+            ))
+          : blocks.map((b) => (
+              <BlockSection key={b.key} block={b} revision={revision} format={tournament.format} />
+            ))}
       </div>
     </section>
   );
