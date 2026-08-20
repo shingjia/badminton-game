@@ -43,6 +43,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const existingDrafts: ExistingDraft[] = [];
   let clubDrafts: ClubDraft[] = [];
+  let wave = 0; // only meaningful for club format — captured for the transaction below
 
   if (tournament.format === 'club') {
     // Groups play each other directly (round-robin), not internally —
@@ -51,12 +52,24 @@ export async function POST(req: NextRequest, { params }: Params) {
     const primaryCourtsNeeded = groups.length / 2;
     if (courts.length !== primaryCourtsNeeded + 1) return conflict('court_count_mismatch');
 
+    // Each circulation (wave) is generated independently, so staff can
+    // adjust a group's 棒次 (seed order) between circulations and have it
+    // reflected in the next one — see docs/superpowers/specs/2026-08-20-
+    // club-per-wave-generation-design.md. Which groups play which groups
+    // in which wave never depends on 棒次 (roundRobinPairs only looks at
+    // group ids), so it's safe to always recompute the full schedule from
+    // the *current* rosters and just keep the requested wave's matches.
+    const body = await req.json().catch(() => ({}));
+    wave = Number(body?.wave);
+    const maxWave = groups.length - 1;
+    if (!Number.isInteger(wave) || wave < 1 || wave > maxWave) return conflict('invalid_wave');
+
     try {
       const rosters = groups.map((g) => ({
         groupId: g.id,
         players: g.players.map((p) => ({ id: p.id, seed: p.seed })),
       }));
-      const schedule = buildClubSchedule(rosters);
+      const schedule = buildClubSchedule(rosters).filter((m) => m.roundNumber === wave);
       clubDrafts = schedule.map((m) => ({
         ...m,
         tournamentId: params.id,
@@ -105,9 +118,18 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const result = await prisma.$transaction(async (tx) => {
     if (tournament.format === 'club') {
-      // Club pairs are one-off (created fresh below); clear any from a
-      // previous generate before rebuilding. Cascades their old matches.
-      await tx.pair.deleteMany({ where: { groupId: { in: groups.map((g) => g.id) } } });
+      // Only this wave's matches get regenerated — other circulations
+      // (including already-scored ones) are untouched. Pairs are one-off
+      // per match, so find them via their match before deleting (deleting
+      // a Pair cascades its Match, per the schema's onDelete: Cascade).
+      const existingWaveMatches = await tx.match.findMany({
+        where: { tournamentId: params.id, roundNumber: wave },
+        select: { pairAId: true, pairBId: true },
+      });
+      const pairIds = existingWaveMatches.flatMap((m) => [m.pairAId, m.pairBId]);
+      if (pairIds.length > 0) {
+        await tx.pair.deleteMany({ where: { id: { in: pairIds } } });
+      }
     } else {
       await tx.match.deleteMany({ where: { tournamentId: params.id } });
     }
