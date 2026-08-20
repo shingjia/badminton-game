@@ -4,10 +4,13 @@ export const TournamentStatusEnum = z.enum(['draft', 'grouping', 'in_progress', 
 
 export const BannerColor = z.enum(['red', 'blue', 'green', 'purple', 'orange', 'slate']);
 
+export const TournamentFormatEnum = z.enum(['friendly', 'club']);
+
 export const CreateTournament = z.object({
   name: z.string().trim().min(1).max(100),
   groupCount: z.number().int().min(1).max(26).optional(),
   pointsPerGame: z.number().int().min(11).max(31).optional(),
+  format: TournamentFormatEnum.optional(),
 });
 
 export const UpdateTournament = z.object({

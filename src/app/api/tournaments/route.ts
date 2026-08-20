@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
       name: parsed.data.name,
       groupCount: parsed.data.groupCount ?? 4,
       pointsPerGame: parsed.data.pointsPerGame ?? 21,
+      format: parsed.data.format ?? 'friendly',
     },
   });
   emitToTournament(t.id, 'tournament.updated', { tournamentId: t.id, tournament: t });
