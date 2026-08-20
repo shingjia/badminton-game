@@ -8,7 +8,7 @@ import { api } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import type { Court, Group, Match, Pair, Player, Tournament } from '@prisma/client';
 
-type PairWithPlayers = Pair & { player1: Player; player2: Player };
+type PairWithPlayers = Pair & { player1: Player; player2: Player; group: Group };
 type MatchFull = Match & {
   pairA: PairWithPlayers;
   pairB: PairWithPlayers;
@@ -18,6 +18,13 @@ type MatchFull = Match & {
 
 function pairLabel(p: PairWithPlayers) {
   return `${p.player1.name} / ${p.player2.name}`;
+}
+
+function pairingOf(m: MatchFull) {
+  const [first, second] = [m.pairA.group, m.pairB.group].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+  return { key: `${first.id}-${second.id}`, label: `${first.name} 組 vs ${second.name} 組` };
 }
 
 export function SectionMatches({ tournament, revision }: { tournament: Tournament; revision: number }) {
@@ -47,10 +54,17 @@ export function SectionMatches({ tournament, revision }: { tournament: Tournamen
     }
   }
 
-  const byGroup = new Map<string, MatchFull[]>();
+  // Group by group (friendly) or by pairing (club — a match spans two
+  // different groups, so grouping by Match.group alone would only show
+  // one side and hide who the opponent is).
+  const byGroup = new Map<string, { title: string; matches: MatchFull[] }>();
   for (const m of matches) {
-    const k = m.group.name;
-    (byGroup.get(k) ?? byGroup.set(k, []).get(k)!).push(m);
+    const p = tournament.format === 'club' ? pairingOf(m) : null;
+    const key = p ? p.key : m.group.name;
+    const title = p ? p.label : `${m.group.name} 組`;
+    const block = byGroup.get(key) ?? { title, matches: [] };
+    block.matches.push(m);
+    byGroup.set(key, block);
   }
 
   return (
@@ -63,11 +77,11 @@ export function SectionMatches({ tournament, revision }: { tournament: Tournamen
         <span className="text-sm text-muted-foreground">{matches.length} 場</span>
       </div>
       <div className="space-y-4 border-l-4 border-l-emerald-500 pl-4">
-        {[...byGroup.entries()].map(([gname, ms]) => (
-          <Card key={gname} className="p-3">
-            <div className="mb-2 font-semibold">{gname} 組</div>
+        {[...byGroup.entries()].map(([key, block]) => (
+          <Card key={key} className="p-3">
+            <div className="mb-2 font-semibold">{block.title}</div>
             <div className="grid gap-2 md:grid-cols-2">
-              {ms.map((m) => (
+              {block.matches.map((m) => (
                 <div key={m.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
                   <div>
                     <span className="text-muted-foreground">#{m.matchOrder}</span>{' '}

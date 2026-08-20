@@ -8,7 +8,7 @@ import { api, ApiError } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import type { Court, Group, Match, Pair, Player, Tournament } from '@prisma/client';
 
-type PairWithPlayers = Pair & { player1: Player; player2: Player };
+type PairWithPlayers = Pair & { player1: Player; player2: Player; group: Group };
 type MatchFull = Match & {
   pairA: PairWithPlayers;
   pairB: PairWithPlayers;
@@ -18,6 +18,13 @@ type MatchFull = Match & {
 
 function pairLabel(p: PairWithPlayers) {
   return `${p.player1.name} / ${p.player2.name}`;
+}
+
+function pairingOf(m: MatchFull) {
+  const [first, second] = [m.pairA.group, m.pairB.group].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+  return { key: `${first.id}-${second.id}`, label: `${first.name} 組 vs ${second.name} 組` };
 }
 
 type GroupingMode = 'group' | 'court';
@@ -31,19 +38,24 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
     api<MatchFull[]>(`/api/tournaments/${tournament.id}/matches`).then(setMatches);
   }, [tournament.id, revision]);
 
-  // Group by group
+  // Group by group (friendly) or by pairing (club — a match spans two
+  // different groups, so grouping by Match.group alone would only show
+  // one side and hide who the opponent is).
   type Block = { key: string; title: string; order: number; matches: MatchFull[] };
 
   const byGroup = new Map<string, Block>();
   for (const m of matches) {
-    const block = byGroup.get(m.group.id) ?? {
-      key: m.group.id,
-      title: `${m.group.name} 組`,
+    const p = tournament.format === 'club' ? pairingOf(m) : null;
+    const key = p ? p.key : m.group.id;
+    const title = p ? p.label : `${m.group.name} 組`;
+    const block = byGroup.get(key) ?? {
+      key,
+      title,
       order: m.group.displayOrder ?? 0,
       matches: [],
     };
     block.matches.push(m);
-    byGroup.set(m.group.id, block);
+    byGroup.set(key, block);
   }
   const groupBlocks = Array.from(byGroup.values()).sort((a, b) => a.order - b.order);
   for (const b of groupBlocks) {
@@ -111,7 +123,7 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
               </div>
               <div className="grid gap-2">
                 {b.matches.map((m) => (
-                  <ScoreRow key={m.id} match={m} revision={revision} />
+                  <ScoreRow key={m.id} match={m} revision={revision} format={tournament.format} />
                 ))}
               </div>
             </div>
@@ -122,7 +134,15 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
   );
 }
 
-function ScoreRow({ match, revision }: { match: MatchFull; revision: number }) {
+function ScoreRow({
+  match,
+  revision,
+  format,
+}: {
+  match: MatchFull;
+  revision: number;
+  format: 'friendly' | 'club';
+}) {
   const { toast } = useToast();
   const [a, setA] = useState(match.scoreA);
   const [b, setB] = useState(match.scoreB);
@@ -169,7 +189,7 @@ function ScoreRow({ match, revision }: { match: MatchFull; revision: number }) {
   return (
     <Card className={`space-y-3 p-3 ${isCompleted ? 'border-emerald-300 bg-emerald-50' : ''}`}>
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <Badge variant="outline">{match.group.name}#{match.matchOrder}</Badge>
+        <Badge variant="outline">{format === 'club' ? pairingOf(match).label : match.group.name}#{match.matchOrder}</Badge>
         {match.court && <Badge variant="outline">{match.court.name}</Badge>}
         {isCompleted ? (
           <Badge className="ml-auto bg-emerald-600 hover:bg-emerald-600">已完成</Badge>
