@@ -179,9 +179,11 @@ export function SectionGroups({
         <h2 className="text-xl font-semibold">分組與配對</h2>
         {canGenerate && (
           <>
-            <Button onClick={generateByLevel} size="sm" disabled={players.length === 0}>
-              依等級自動分組
-            </Button>
+            {tournament.format === 'friendly' && (
+              <Button onClick={generateByLevel} size="sm" disabled={players.length === 0}>
+                依等級自動分組
+              </Button>
+            )}
             <Button
               onClick={generateMixed}
               size="sm"
