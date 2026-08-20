@@ -31,6 +31,8 @@ export function SectionMatches({ tournament, revision }: { tournament: Tournamen
   const ERR: Record<string, string> = {
     no_matches_to_generate: '每組至少要有 2 對才能產生對戰',
     no_groups: '尚未分組',
+    unequal_sides: '有一組依等級分出的兩隊人數不相等，請調整組數或球員人數',
+    side_too_small: '有一組分出的兩隊人數少於 3 人，無法輪轉搭檔，請調整組數或球員人數',
   };
 
   async function generate() {
