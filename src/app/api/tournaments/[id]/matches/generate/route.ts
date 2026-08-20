@@ -3,23 +3,21 @@ import { prisma } from '@/lib/prisma';
 import { conflict, notFound, ok, requireAdmin, ensureStatus } from '@/lib/api-helpers';
 import { roundRobinPairs } from '@/lib/algorithms/circle-method';
 import { allocateCourts, type MatchInput } from '@/lib/algorithms/court-allocation';
-import { splitByLevel2, rotationSchedule } from '@/lib/rotation';
+import { buildClubSchedule, type ClubMatchDraft } from '@/lib/club-schedule';
 import { emitToTournament } from '@/lib/socket-server';
 
 type Params = { params: { id: string } };
 
-// Existing pairs are read off the group (friendly). Rotation matches don't
-// have pairs yet — the two players for each side are carried through and
-// turned into fresh Pair rows inside the transaction.
-type Draft = {
+type ExistingDraft = {
   tournamentId: string;
   groupId: string;
+  pairAId: string;
+  pairBId: string;
   roundNumber: number;
   matchOrder: number;
-} & (
-  | { kind: 'existing'; pairAId: string; pairBId: string }
-  | { kind: 'rotation'; sideAPlayers: [string, string]; sideBPlayers: [string, string] }
-);
+};
+
+type ClubDraft = ClubMatchDraft & { tournamentId: string; courtId: string | null };
 
 export async function POST(req: NextRequest, { params }: Params) {
   const unauth = requireAdmin(req);
@@ -43,31 +41,40 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   if (groups.length === 0) return conflict('no_groups');
 
-  const drafts: Draft[] = [];
-  try {
-    for (const g of groups) {
-      if (tournament.format === 'club') {
-        const { sideA, sideB } = splitByLevel2(g.players.map((p) => ({ id: p.id, level: p.level })));
-        const bySide = (ids: string[]) =>
-          ids.map((id) => ({ id, seed: g.players.find((p) => p.id === id)!.seed }));
-        const schedule = rotationSchedule(bySide(sideA), bySide(sideB));
-        for (const m of schedule) {
-          drafts.push({
-            kind: 'rotation',
-            tournamentId: params.id,
-            groupId: g.id,
-            sideAPlayers: m.sideAPlayers,
-            sideBPlayers: m.sideBPlayers,
-            roundNumber: m.roundNumber,
-            matchOrder: m.matchOrder,
-          });
-        }
-      } else {
+  const existingDrafts: ExistingDraft[] = [];
+  let clubDrafts: ClubDraft[] = [];
+
+  if (tournament.format === 'club') {
+    // Groups play each other directly (round-robin), not internally —
+    // needs exactly groupCount/2 dedicated courts + 1 shared court.
+    if (groups.length % 2 !== 0) return conflict('odd_group_count');
+    const primaryCourtsNeeded = groups.length / 2;
+    if (courts.length !== primaryCourtsNeeded + 1) return conflict('court_count_mismatch');
+
+    try {
+      const rosters = groups.map((g) => ({
+        groupId: g.id,
+        players: g.players.map((p) => ({ id: p.id, seed: p.seed })),
+      }));
+      const schedule = buildClubSchedule(rosters);
+      clubDrafts = schedule.map((m) => ({
+        ...m,
+        tournamentId: params.id,
+        courtId:
+          m.courtSlot === 'primary'
+            ? courts[m.pairingIndexInWave].id
+            : courts[primaryCourtsNeeded].id,
+      }));
+    } catch (e: any) {
+      return conflict(e.message);
+    }
+  } else {
+    try {
+      for (const g of groups) {
         const pairIds = g.pairs.map((p) => p.id);
         const matches = roundRobinPairs(pairIds);
         for (const m of matches) {
-          drafts.push({
-            kind: 'existing',
+          existingDrafts.push({
             tournamentId: params.id,
             groupId: g.id,
             pairAId: m.teamA,
@@ -77,14 +84,18 @@ export async function POST(req: NextRequest, { params }: Params) {
           });
         }
       }
+    } catch (e: any) {
+      return conflict(e.message);
     }
-  } catch (e: any) {
-    return conflict(e.message);
   }
 
-  if (drafts.length === 0) return conflict('no_matches_to_generate');
+  if (existingDrafts.length + clubDrafts.length === 0) return conflict('no_matches_to_generate');
 
-  const matchInputs: MatchInput[] = drafts.map((d, idx) => ({
+  // Friendly's existing pairs still go through the generic allocateCourts
+  // (batches by roundNumber, round-robins across all courts) — club's
+  // court assignment is already resolved above, bespoke to its primary/
+  // shared-court balancing rule.
+  const matchInputs: MatchInput[] = existingDrafts.map((d, idx) => ({
     id: `tmp${idx}`,
     groupId: d.groupId,
     roundNumber: d.roundNumber,
@@ -102,44 +113,16 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     const created = [];
-    for (let i = 0; i < drafts.length; i++) {
-      const d = drafts[i];
+
+    for (let i = 0; i < existingDrafts.length; i++) {
+      const d = existingDrafts[i];
       const courtId = courtById.get(`tmp${i}`) ?? null;
-
-      let pairAId: string;
-      let pairBId: string;
-      if (d.kind === 'existing') {
-        pairAId = d.pairAId;
-        pairBId = d.pairBId;
-      } else {
-        const pairA = await tx.pair.create({
-          data: {
-            tournamentId: d.tournamentId,
-            groupId: d.groupId,
-            player1Id: d.sideAPlayers[0],
-            player2Id: d.sideAPlayers[1],
-            displayOrder: d.matchOrder,
-          },
-        });
-        const pairB = await tx.pair.create({
-          data: {
-            tournamentId: d.tournamentId,
-            groupId: d.groupId,
-            player1Id: d.sideBPlayers[0],
-            player2Id: d.sideBPlayers[1],
-            displayOrder: d.matchOrder,
-          },
-        });
-        pairAId = pairA.id;
-        pairBId = pairB.id;
-      }
-
       const m = await tx.match.create({
         data: {
           tournamentId: d.tournamentId,
           groupId: d.groupId,
-          pairAId,
-          pairBId,
+          pairAId: d.pairAId,
+          pairBId: d.pairBId,
           roundNumber: d.roundNumber,
           matchOrder: d.matchOrder,
           courtId,
@@ -147,6 +130,47 @@ export async function POST(req: NextRequest, { params }: Params) {
       });
       created.push(m);
     }
+
+    for (const d of clubDrafts) {
+      // Each side's one-off Pair is tagged with *its own* group — not a
+      // shared value — so standings can attribute stats correctly (see
+      // lib/player-standings.ts).
+      const pairA = await tx.pair.create({
+        data: {
+          tournamentId: d.tournamentId,
+          groupId: d.groupAId,
+          player1Id: d.sideAPlayers[0],
+          player2Id: d.sideAPlayers[1],
+          displayOrder: d.matchOrder,
+        },
+      });
+      const pairB = await tx.pair.create({
+        data: {
+          tournamentId: d.tournamentId,
+          groupId: d.groupBId,
+          player1Id: d.sideBPlayers[0],
+          player2Id: d.sideBPlayers[1],
+          displayOrder: d.matchOrder,
+        },
+      });
+      // Match.groupId is a required single FK but a club match spans two
+      // groups — pairA's group is stored here as a technical placeholder
+      // only; nothing should read it as "the" group for a club match
+      // (use pairA.group / pairB.group instead, see matches-tab.tsx).
+      const m = await tx.match.create({
+        data: {
+          tournamentId: d.tournamentId,
+          groupId: d.groupAId,
+          pairAId: pairA.id,
+          pairBId: pairB.id,
+          roundNumber: d.roundNumber,
+          matchOrder: d.matchOrder,
+          courtId: d.courtId,
+        },
+      });
+      created.push(m);
+    }
+
     return created;
   });
 
