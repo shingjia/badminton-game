@@ -7,7 +7,15 @@ import type { Group, Player, Pair } from '@prisma/client';
 
 type GroupWithData = Group & { players: Player[]; pairs: Pair[] };
 
-export function GroupsTab({ tournamentId, revision }: { tournamentId: string; revision: number }) {
+export function GroupsTab({
+  tournamentId,
+  revision,
+  format,
+}: {
+  tournamentId: string;
+  revision: number;
+  format: 'friendly' | 'club';
+}) {
   const [groups, setGroups] = useState<GroupWithData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +56,7 @@ export function GroupsTab({ tournamentId, revision }: { tournamentId: string; re
                     </span>
                   ))}
                 </div>
-                {sortedPairs.length > 0 && (
+                {format === 'friendly' && sortedPairs.length > 0 && (
                   <div className="space-y-1 border-t pt-2">
                     {sortedPairs.map((pair, i) => {
                       const p1 = g.players.find((x) => x.id === pair.player1Id);

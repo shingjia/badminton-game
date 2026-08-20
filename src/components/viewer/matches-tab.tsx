@@ -22,10 +22,18 @@ function pairLabel(p: PairWithPlayers) {
 
 type ViewMode = 'graph' | 'group' | 'court';
 
-export function MatchesTab({ tournamentId, revision }: { tournamentId: string; revision: number }) {
+export function MatchesTab({
+  tournamentId,
+  revision,
+  format,
+}: {
+  tournamentId: string;
+  revision: number;
+  format: 'friendly' | 'club';
+}) {
   const [matches, setMatches] = useState<MatchFull[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<ViewMode>('graph');
+  const [view, setView] = useState<ViewMode>(format === 'club' ? 'group' : 'graph');
 
   useEffect(() => {
     setLoading(true);
@@ -69,15 +77,17 @@ export function MatchesTab({ tournamentId, revision }: { tournamentId: string; r
 
   return (
     <div className="space-y-4 py-4">
-      <div className="grid grid-cols-3 gap-1 rounded-lg border bg-muted/40 p-1">
-        <Button
-          size="sm"
-          variant={view === 'graph' ? 'default' : 'ghost'}
-          onClick={() => setView('graph')}
-          className="h-8 w-full"
-        >
-          循環圖
-        </Button>
+      <div className={`grid gap-1 rounded-lg border bg-muted/40 p-1 ${format === 'club' ? 'grid-cols-2' : 'grid-cols-3'}`}>
+        {format === 'friendly' && (
+          <Button
+            size="sm"
+            variant={view === 'graph' ? 'default' : 'ghost'}
+            onClick={() => setView('graph')}
+            className="h-8 w-full"
+          >
+            循環圖
+          </Button>
+        )}
         <Button
           size="sm"
           variant={view === 'group' ? 'default' : 'ghost'}

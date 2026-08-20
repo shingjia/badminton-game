@@ -51,13 +51,13 @@ export function ViewerClient({
             <PlayersTab tournamentId={tournamentId} revision={revision} />
           </TabsContent>
           <TabsContent value="groups">
-            <GroupsTab tournamentId={tournamentId} revision={revision} />
+            <GroupsTab tournamentId={tournamentId} revision={revision} format={tournament.format} />
           </TabsContent>
           <TabsContent value="matches">
-            <MatchesTab tournamentId={tournamentId} revision={revision} />
+            <MatchesTab tournamentId={tournamentId} revision={revision} format={tournament.format} />
           </TabsContent>
           <TabsContent value="standings">
-            <StandingsTab tournamentId={tournamentId} revision={revision} />
+            <StandingsTab tournamentId={tournamentId} revision={revision} format={tournament.format} />
           </TabsContent>
         </Tabs>
       </div>

@@ -7,7 +7,8 @@ import { api } from '@/lib/api-client';
 import type { Group, Player, Pair } from '@prisma/client';
 
 type Row = {
-  pair_id: string;
+  pair_id?: string;
+  player_id?: string;
   group_id: string;
   wins: number;
   losses: number;
@@ -20,7 +21,15 @@ type Row = {
 type GroupBlock = { groupId: string; standings: Row[] };
 type GroupWithRelations = Group & { players: Player[]; pairs: Pair[] };
 
-export function StandingsTab({ tournamentId, revision }: { tournamentId: string; revision: number }) {
+export function StandingsTab({
+  tournamentId,
+  revision,
+  format,
+}: {
+  tournamentId: string;
+  revision: number;
+  format: 'friendly' | 'club';
+}) {
   const [blocks, setBlocks] = useState<GroupBlock[]>([]);
   const [groups, setGroups] = useState<GroupWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +60,16 @@ export function StandingsTab({ tournamentId, revision }: { tournamentId: string;
     }
     return pairId.slice(0, 6);
   };
+  const playerLabel = (playerId: string) => {
+    for (const g of groups) {
+      const p = g.players.find((pl) => pl.id === playerId);
+      if (p) return p.name;
+    }
+    return playerId.slice(0, 6);
+  };
+  const subjectLabel = (r: Row) =>
+    format === 'club' ? playerLabel(r.player_id!) : pairLabel(r.pair_id!);
+  const subjectKey = (r: Row) => (format === 'club' ? r.player_id! : r.pair_id!);
   const groupName = (id: string) => groups.find((g) => g.id === id)?.name ?? '';
 
   return (
@@ -62,7 +81,7 @@ export function StandingsTab({ tournamentId, revision }: { tournamentId: string;
             <TableHeader>
               <TableRow>
                 <TableHead className="w-24">名次</TableHead>
-                <TableHead>配對</TableHead>
+                <TableHead>{format === 'club' ? '球員' : '配對'}</TableHead>
                 <TableHead className="text-right">勝</TableHead>
                 <TableHead className="text-right">負</TableHead>
                 <TableHead className="text-right">場次</TableHead>
@@ -76,7 +95,7 @@ export function StandingsTab({ tournamentId, revision }: { tournamentId: string;
                 const hasMedal = r.played > 0 && (r.rank === 1 || r.rank === 2 || r.rank === 3);
                 return (
                 <TableRow
-                  key={r.pair_id}
+                  key={subjectKey(r)}
                   className={
                     hasMedal && r.rank === 1
                       ? 'bg-amber-50'
@@ -98,7 +117,7 @@ export function StandingsTab({ tournamentId, revision }: { tournamentId: string;
                       <span className="text-muted-foreground">{r.rank}</span>
                     )}
                   </TableCell>
-                  <TableCell>{pairLabel(r.pair_id)}</TableCell>
+                  <TableCell>{subjectLabel(r)}</TableCell>
                   <TableCell className="text-right">{r.wins}</TableCell>
                   <TableCell className="text-right">{r.losses}</TableCell>
                   <TableCell className="text-right">{r.played}</TableCell>
