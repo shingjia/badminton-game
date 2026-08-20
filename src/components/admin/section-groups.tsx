@@ -80,24 +80,29 @@ export function SectionGroups({
 
   async function submitGroups(groupsPayload: { levelCode: string; playerIds: string[] }[]) {
     try {
-      await api(`/api/tournaments/${tournament.id}/groups/generate`, {
-        method: 'POST',
-        body: { groups: groupsPayload },
-      });
-      toast({ title: '已產生分組' });
+      const { groups: created } = await api<{ groups: { id: string }[] }>(
+        `/api/tournaments/${tournament.id}/groups/generate`,
+        { method: 'POST', body: { groups: groupsPayload } },
+      );
+      return created;
     } catch (e: any) {
       const code = e.body?.error;
       toast({ title: '無法產生分組', description: GROUP_ERR[code] ?? code, variant: 'destructive' });
+      return null;
     }
   }
 
-  // 依等級自動分組：每個等級各自成一組
+  // 依等級自動分組：每個等級各自成一組，分完直接隨機配對，不用再手動
+  // 逐組按重抽——友誼賽只剩這一種分組方式，省掉那一步。
   async function generateByLevel() {
     const groupsPayload = [...byLevelBuckets().entries()].map(([levelCode, playerIds]) => ({
       levelCode,
       playerIds,
     }));
-    await submitGroups(groupsPayload);
+    const created = await submitGroups(groupsPayload);
+    if (!created) return;
+    await Promise.all(created.map((g) => shuffle(g.id, { silent: true })));
+    toast({ title: '已產生分組並完成配對' });
   }
 
   // 各組等級均分：把每個等級的球員 round-robin 分散到 groupCount 組，
@@ -120,7 +125,8 @@ export function SectionGroups({
     const groupsPayload = buckets
       .filter((playerIds) => playerIds.length > 0)
       .map((playerIds) => ({ levelCode: '混合', playerIds }));
-    await submitGroups(groupsPayload);
+    const created = await submitGroups(groupsPayload);
+    if (created) toast({ title: '已產生分組' });
   }
 
   async function updatePlayer(playerId: string, patch: { name?: string; seed?: number | null }) {
@@ -131,16 +137,15 @@ export function SectionGroups({
     }
   }
 
-  const PAIR_METHODS = [
-    { key: 'random', label: '隨機重抽' },
-    { key: 'seed', label: '依棒次配對' },
-    { key: 'level', label: '依等級配對' },
-  ] as const;
-
-  async function shuffle(groupId: string, method: (typeof PAIR_METHODS)[number]['key']) {
+  // 配對固定隨機——不再讓使用者選棒次配對／等級配對，只留一顆可以
+  // 重抽的按鈕。
+  async function shuffle(groupId: string, opts: { silent?: boolean } = {}) {
     try {
-      await api(`/api/groups/${groupId}/pairs/shuffle`, { method: 'POST', body: { method } });
-      toast({ title: '配對已產生' });
+      await api(`/api/groups/${groupId}/pairs/shuffle`, {
+        method: 'POST',
+        body: { method: 'random' },
+      });
+      if (!opts.silent) toast({ title: '配對已重抽' });
     } catch (e: any) {
       const code = e.body?.error;
       const msg = code === 'group_has_scored_matches' ? '這組已經有比賽計分了，無法重新配對' : undefined;
@@ -177,22 +182,15 @@ export function SectionGroups({
     <section id="groups" className="scroll-mt-16">
       <div className="mb-3 flex items-center gap-3">
         <h2 className="text-xl font-semibold">分組與配對</h2>
-        {canGenerate && (
-          <>
-            {tournament.format === 'friendly' && (
-              <Button onClick={generateByLevel} size="sm" disabled={players.length === 0}>
-                依等級自動分組
-              </Button>
-            )}
-            <Button
-              onClick={generateMixed}
-              size="sm"
-              variant="outline"
-              disabled={players.length === 0}
-            >
-              各組等級均分
-            </Button>
-          </>
+        {canGenerate && tournament.format === 'friendly' && (
+          <Button onClick={generateByLevel} size="sm" disabled={players.length === 0}>
+            依等級自動分組
+          </Button>
+        )}
+        {canGenerate && tournament.format === 'club' && (
+          <Button onClick={generateMixed} size="sm" disabled={players.length === 0}>
+            各組等級均分
+          </Button>
         )}
         {canEdit && tournament.format === 'club' && (
           <Button onClick={confirmGrouping} size="sm">
@@ -302,16 +300,9 @@ export function SectionGroups({
 
               {canEdit && tournament.format === 'friendly' && (
                 <div className="flex flex-wrap gap-2">
-                  {PAIR_METHODS.map((m) => (
-                    <Button
-                      key={m.key}
-                      size="sm"
-                      variant="outline"
-                      onClick={() => shuffle(g.id, m.key)}
-                    >
-                      {m.label}
-                    </Button>
-                  ))}
+                  <Button size="sm" variant="outline" onClick={() => shuffle(g.id)}>
+                    重抽配對
+                  </Button>
                   <Button
                     size="sm"
                     disabled={isLocked || g.pairs.length === 0}
