@@ -33,6 +33,8 @@ export function SectionMatches({ tournament, revision }: { tournament: Tournamen
     no_groups: '尚未分組',
     unequal_sides: '有一組依等級分出的兩隊人數不相等，請調整組數或球員人數',
     side_too_small: '有一組分出的兩隊人數少於 3 人，無法輪轉搭檔，請調整組數或球員人數',
+    odd_group_count: '會內賽的組數必須是偶數（組跟組要兩兩對戰），請調整組數',
+    court_count_mismatch: '會內賽的場地數必須等於「組數÷2 + 1」，請調整場地或組數',
   };
 
   async function generate() {
