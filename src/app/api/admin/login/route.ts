@@ -43,7 +43,12 @@ export async function POST(req: NextRequest) {
       if (adminCount === 0) {
         const config = await prisma.adminConfig.findUnique({ where: { id: 0 } });
         let bootstrapOk = false;
-        if (config) {
+        // config.passwordHash may be the empty-string placeholder written by
+        // PATCH /api/admin/site-config's self-healing upsert (see that
+        // route's comment) — that's not a real legacy hash, so fall through
+        // to the env-var recovery path instead of treating it as "has a
+        // password to check against."
+        if (config?.passwordHash) {
           bootstrapOk = verifyPassword(password, config.passwordHash);
         } else {
           const envPw = process.env.ADMIN_PASSWORD;
