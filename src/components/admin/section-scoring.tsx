@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { api, ApiError } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { colorForIndex } from '@/lib/badge-colors';
 import type { Court, Group, Match, Pair, Player, Tournament } from '@prisma/client';
 
 type PairWithPlayers = Pair & { player1: Player; player2: Player; group: Group };
@@ -27,22 +28,59 @@ function pairingOf(m: MatchFull) {
   return { key: `${first.id}-${second.id}`, label: `${first.name} 組 vs ${second.name} 組` };
 }
 
+function GroupBadge({ name, order }: { name: string; order: number }) {
+  return <Badge variant="outline" className={colorForIndex(order - 1)}>{name}</Badge>;
+}
+
+function CourtBadge({ name, order }: { name: string; order: number }) {
+  return <Badge variant="outline" className={colorForIndex(order - 1)}>{name}</Badge>;
+}
+
+// 會內賽一場比賽橫跨兩組，兩組各自用自己的顏色，不是整條標題單一顏色。
+function PairingHeader({ matches, format }: { matches: MatchFull[]; format: 'friendly' | 'club' }) {
+  const m = matches[0];
+  if (format === 'friendly') {
+    return <GroupBadge name={`${m.group.name} 組`} order={m.group.displayOrder ?? 1} />;
+  }
+  const [first, second] = [m.pairA.group, m.pairB.group].sort((a, b) => a.name.localeCompare(b.name));
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <GroupBadge name={`${first.name} 組`} order={first.displayOrder ?? 1} />
+      <span className="text-xs text-muted-foreground">vs</span>
+      <GroupBadge name={`${second.name} 組`} order={second.displayOrder ?? 1} />
+    </span>
+  );
+}
+
 type Block = { key: string; title: string; order: number; matches: MatchFull[] };
 
 function BlockSection({
   block,
   revision,
   format,
+  mode,
 }: {
   block: Block;
   revision: number;
   format: 'friendly' | 'club';
+  mode: GroupingMode;
 }) {
   const completed = block.matches.filter((m) => m.status === 'completed').length;
+  const first = block.matches[0];
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between">
-        <div className="text-base font-semibold">{block.title}</div>
+        <div className="text-base font-semibold">
+          {mode === 'court' ? (
+            first.court ? (
+              <CourtBadge name={first.court.name} order={first.court.displayOrder ?? 1} />
+            ) : (
+              block.title
+            )
+          ) : (
+            <PairingHeader matches={block.matches} format={format} />
+          )}
+        </div>
         <div className="text-xs text-muted-foreground">
           {completed} / {block.matches.length} 場已完成
         </div>
@@ -160,13 +198,13 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
                 <div className="mb-2 text-lg font-semibold">{wb.title}</div>
                 <div className="space-y-4 pl-3">
                   {wb.blocks.map((b) => (
-                    <BlockSection key={b.key} block={b} revision={revision} format={tournament.format} />
+                    <BlockSection key={b.key} block={b} revision={revision} format={tournament.format} mode={mode} />
                   ))}
                 </div>
               </div>
             ))
           : blocks.map((b) => (
-              <BlockSection key={b.key} block={b} revision={revision} format={tournament.format} />
+              <BlockSection key={b.key} block={b} revision={revision} format={tournament.format} mode={mode} />
             ))}
       </div>
     </section>
@@ -228,8 +266,11 @@ function ScoreRow({
   return (
     <Card className={`space-y-3 p-3 ${isCompleted ? 'border-emerald-300 bg-emerald-50' : ''}`}>
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <Badge variant="outline">{format === 'club' ? pairingOf(match).label : match.group.name}#{match.matchOrder}</Badge>
-        {match.court && <Badge variant="outline">{match.court.name}</Badge>}
+        <span className="inline-flex items-center gap-1">
+          <PairingHeader matches={[match]} format={format} />
+          <span className="text-muted-foreground">#{match.matchOrder}</span>
+        </span>
+        {match.court && <CourtBadge name={match.court.name} order={match.court.displayOrder ?? 1} />}
         {isCompleted ? (
           <Badge className="ml-auto bg-emerald-600 hover:bg-emerald-600">已完成</Badge>
         ) : isPlaying ? (
