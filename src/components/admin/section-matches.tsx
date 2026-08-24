@@ -29,11 +29,11 @@ function pairingOf(m: MatchFull) {
 }
 
 function GroupBadge({ name, order }: { name: string; order: number }) {
-  return <Badge className={colorForIndex(order - 1)}>{name}</Badge>;
+  return <Badge variant="outline" className={colorForIndex(order - 1)}>{name}</Badge>;
 }
 
 function CourtBadge({ name, order }: { name: string; order: number }) {
-  return <Badge className={colorForIndex(order - 1)}>{name}</Badge>;
+  return <Badge variant="outline" className={colorForIndex(order - 1)}>{name}</Badge>;
 }
 
 // 會內賽一場比賽橫跨兩組，兩組各自用自己的顏色，不是整條標題單一顏色。
