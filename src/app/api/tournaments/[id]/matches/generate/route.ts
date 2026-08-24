@@ -47,10 +47,14 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   if (tournament.format === 'club') {
     // Groups play each other directly (round-robin), not internally —
-    // needs exactly groupCount/2 dedicated courts + 1 shared court.
+    // needs exactly groupCount/2 dedicated courts, optionally +1 shared
+    // court for load-balancing overflow. Without the shared court, every
+    // one of a pairing's matches just stays on its own dedicated court —
+    // see the courtId resolution below.
     if (groups.length % 2 !== 0) return conflict('odd_group_count');
     const primaryCourtsNeeded = groups.length / 2;
-    if (courts.length !== primaryCourtsNeeded + 1) return conflict('court_count_mismatch');
+    const hasSharedCourt = courts.length === primaryCourtsNeeded + 1;
+    if (courts.length !== primaryCourtsNeeded && !hasSharedCourt) return conflict('court_count_mismatch');
 
     // Each circulation (wave) is generated independently, so staff can
     // adjust a group's 棒次 (seed order) between circulations and have it
@@ -73,10 +77,14 @@ export async function POST(req: NextRequest, { params }: Params) {
       clubDrafts = schedule.map((m) => ({
         ...m,
         tournamentId: params.id,
+        // No shared court (courts.length === primaryCourtsNeeded): every
+        // match — 'primary' or 'shared' alike — stays on its own
+        // pairing's dedicated court, since there's no extra court to
+        // offload the 'shared'-tagged overflow onto.
         courtId:
-          m.courtSlot === 'primary'
-            ? courts[m.pairingIndexInWave].id
-            : courts[primaryCourtsNeeded].id,
+          hasSharedCourt && m.courtSlot === 'shared'
+            ? courts[primaryCourtsNeeded].id
+            : courts[m.pairingIndexInWave].id,
       }));
     } catch (e: any) {
       return conflict(e.message);
