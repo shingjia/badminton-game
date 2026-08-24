@@ -251,12 +251,23 @@ function ScoreRow({
         // 舊分數，反而會造成「跳回舊分數、又跳回新分數」的閃爍（下一
         // 次任何分數變動觸發的重新整理，或這一場自己的 socket 廣播，
         // 之後自然會校正回正確值，不用在這裡搶著 revert）。
+        // ponytail: 如果這場比賽剛好是整個賽事目前唯一在計分、又剛好
+        // 連 request 都沒送到（不只是回應遺失），畫面會暫時停在錯的樂
+        // 觀值，要等下一次任何分數變動才會校正——多場地同時計分時這個
+        // 視窗很短，先不特別處理，真的常發生再加逾時強制重抓單場資料。
         if (e instanceof ApiError) {
           setA(match.scoreA);
           setB(match.scoreB);
+          toast({ title: '計分失敗', description: e.body?.error, variant: 'destructive' });
+        } else {
+          // 不確定分數到底有沒有送達，先不說「失敗」，避免工作人員誤以
+          // 為畫面上的數字是錯的、手動再調整一次反而把正確分數改壞。
+          toast({
+            title: '連線不穩定',
+            description: '分數可能已經送出，請確認畫面數字是否正確，不要重複調整',
+            variant: 'destructive',
+          });
         }
-        const reason = e instanceof ApiError ? e.body?.error : 'unknown';
-        toast({ title: '計分失敗', description: reason, variant: 'destructive' });
       })
       .finally(() => {
         pending.current--;
