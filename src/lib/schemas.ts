@@ -18,6 +18,7 @@ export const UpdateTournament = z.object({
   status: TournamentStatusEnum.optional(),
   groupCount: z.number().int().min(1).max(26).optional(),
   pointsPerGame: z.number().int().min(11).max(31).optional(),
+  showPlayerLevel: z.boolean().optional(),
   bannerIcon: z.string().trim().min(1).max(4).optional(),
   bannerColor: BannerColor.optional(),
   bannerIconImage: z.string().nullable().optional(),
