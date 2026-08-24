@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api-client';
+import { colorForIndex } from '@/lib/badge-colors';
 import type { Match, Pair, Player, Court, Group } from '@prisma/client';
 import { MatchGraph } from '@/components/viewer/match-graph';
 
@@ -27,6 +28,30 @@ function pairingOf(m: MatchFull) {
   return { key: `${first.id}-${second.id}`, label: `${first.name} 組 vs ${second.name} 組` };
 }
 
+function GroupBadge({ name, order }: { name: string; order: number }) {
+  return <Badge variant="outline" className={colorForIndex(order - 1)}>{name}</Badge>;
+}
+
+function CourtBadge({ name, order }: { name: string; order: number }) {
+  return <Badge variant="outline" className={colorForIndex(order - 1)}>{name}</Badge>;
+}
+
+// 會內賽一場比賽橫跨兩組，兩組各自用自己的顏色，不是整條標題單一顏色。
+function PairingHeader({ matches, format }: { matches: MatchFull[]; format: 'friendly' | 'club' }) {
+  const m = matches[0];
+  if (format === 'friendly') {
+    return <GroupBadge name={`${m.group.name} 組`} order={m.group.displayOrder ?? 1} />;
+  }
+  const [first, second] = [m.pairA.group, m.pairB.group].sort((a, b) => a.name.localeCompare(b.name));
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <GroupBadge name={`${first.name} 組`} order={first.displayOrder ?? 1} />
+      <span className="text-xs text-muted-foreground">vs</span>
+      <GroupBadge name={`${second.name} 組`} order={second.displayOrder ?? 1} />
+    </span>
+  );
+}
+
 function PairingCard({
   block,
   format,
@@ -39,7 +64,7 @@ function PairingCard({
   return (
     <Card className="p-4">
       <div className="mb-3 flex items-baseline justify-between">
-        <div className="text-lg font-semibold">{block.label}</div>
+        <PairingHeader matches={block.matches} format={format} />
         <div className="text-xs text-muted-foreground">
           {completed} / {total} 場已完成
         </div>
@@ -197,7 +222,13 @@ export function MatchesTab({
           return (
             <Card key={c.key} className="p-4">
               <div className="mb-3 flex items-baseline justify-between">
-                <div className="text-lg font-semibold">{c.courtName}</div>
+                <div className="text-lg font-semibold">
+                  {c.courtOrder !== 9999 ? (
+                    <CourtBadge name={c.courtName} order={c.courtOrder} />
+                  ) : (
+                    c.courtName
+                  )}
+                </div>
                 <div className="text-xs text-muted-foreground">
                   {completed} / {total} 場已完成
                 </div>
@@ -255,9 +286,9 @@ function MatchList({
             <div className="text-sm">
               <span className="text-muted-foreground">#{m.matchOrder}</span>{' '}
               {showGroup && (
-                <Badge variant="outline" className="mr-1 text-xs">
-                  {format === 'club' ? pairingOf(m).label : m.group.name}
-                </Badge>
+                <span className="mr-1 inline-flex items-center">
+                  <PairingHeader matches={[m]} format={format} />
+                </span>
               )}
               <span className="font-medium">{pairLabel(m.pairA)}</span>
               <span className="mx-2">vs</span>
@@ -265,9 +296,7 @@ function MatchList({
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {!showGroup && m.court && (
-                <Badge variant="outline" className="text-xs">
-                  {m.court.name}
-                </Badge>
+                <CourtBadge name={m.court.name} order={m.court.displayOrder ?? 1} />
               )}
               {done ? (
                 <span className="whitespace-nowrap rounded bg-emerald-600 px-2 py-0.5 font-mono text-sm font-bold text-white">
