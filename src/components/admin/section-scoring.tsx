@@ -245,8 +245,16 @@ function ScoreRow({
       body: { scoreA: nextA, scoreB: nextB },
     })
       .catch((e) => {
-        setA(match.scoreA);
-        setB(match.scoreB);
+        // 只有伺服器明確拒絕（ApiError）才 revert——網路層失敗（例如
+        // 手機訊號不穩）代表不確定請求到底有沒有成功送達、後端可能其
+        // 實已經處理了，只是回應遺失。這種不確定的情況硬是 revert 回
+        // 舊分數，反而會造成「跳回舊分數、又跳回新分數」的閃爍（下一
+        // 次任何分數變動觸發的重新整理，或這一場自己的 socket 廣播，
+        // 之後自然會校正回正確值，不用在這裡搶著 revert）。
+        if (e instanceof ApiError) {
+          setA(match.scoreA);
+          setB(match.scoreB);
+        }
         const reason = e instanceof ApiError ? e.body?.error : 'unknown';
         toast({ title: '計分失敗', description: reason, variant: 'destructive' });
       })
