@@ -9,6 +9,17 @@ import type { Group, Player, Pair, Tournament } from '@prisma/client';
 
 type GroupWithData = Group & { players: Player[]; pairs: Pair[] };
 
+// Fisher–Yates — 讓「各組等級均分」重複按時分出不同的組合，不是每次都
+// 一樣的固定結果。
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 export function SectionGroups({
   tournament,
   revision,
@@ -106,14 +117,17 @@ export function SectionGroups({
   }
 
   // 各組等級均分：把每個等級的球員 round-robin 分散到 groupCount 組，
-  // 讓每一組都混到各等級的人，而不是一個等級一組。
+  // 讓每一組都混到各等級的人，而不是一個等級一組。桶內順序先隨機打散，
+  // 這樣「不滿意再按一次」才會分出不同的組合，等級分佈規則不變（規則
+  // 本身沒變，只是同一等級內誰先進哪一組是隨機的）。
   async function generateMixed() {
     const byLevel = byLevelBuckets();
     const n = tournament.groupCount;
     const buckets: string[][] = Array.from({ length: n }, () => []);
     let cursor = 0;
     for (const lvl of [...byLevel.keys()].sort()) {
-      for (const pid of byLevel.get(lvl)!) {
+      const ids = shuffleArray(byLevel.get(lvl)!);
+      for (const pid of ids) {
         buckets[cursor % n].push(pid);
         cursor++;
       }
