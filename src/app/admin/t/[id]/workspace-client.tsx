@@ -23,7 +23,7 @@ const TABS = [
   },
   {
     id: 'teams',
-    label: '隊伍報名',
+    label: '報名',
     active:
       'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 dark:data-[state=active]:bg-blue-900/50 dark:data-[state=active]:text-blue-200',
   },
