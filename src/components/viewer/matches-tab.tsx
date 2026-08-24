@@ -296,9 +296,12 @@ function MatchList({
                 <CourtBadge name={m.court.name} order={m.court.displayOrder ?? 1} />
               )}
               {done ? (
-                <span className="whitespace-nowrap rounded bg-emerald-600 px-2 py-0.5 font-mono text-sm font-bold text-white">
-                  {m.scoreA} - {m.scoreB}
-                </span>
+                <>
+                  <FullscreenMatchButton match={m} />
+                  <span className="whitespace-nowrap rounded bg-emerald-600 px-2 py-0.5 font-mono text-sm font-bold text-white">
+                    {m.scoreA} - {m.scoreB}
+                  </span>
+                </>
               ) : playing ? (
                 <>
                   <FullscreenMatchButton match={m} />
