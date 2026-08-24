@@ -16,27 +16,45 @@ function pairLabel(p: PairWithPlayers) {
  * Esc (browser-native) exits fullscreen without going through the close
  * button, so this listens for `fullscreenchange` rather than tracking
  * state purely from click handlers.
+ *
+ * iOS Safari/Chrome (both WebKit, per Apple's App Store policy) don't
+ * support requestFullscreen() on ordinary elements — only <video>. When
+ * unsupported, this falls back to a CSS-only overlay that still fills the
+ * viewport (just doesn't hide the browser's own address bar/chrome) —
+ * the goal (a big, readable score display) still works everywhere, even
+ * without the real Fullscreen API.
  */
 export function FullscreenMatchButton({ match }: { match: MatchLike }) {
   const [active, setActive] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
+  // Static per-browser capability, safe to read directly in render — it
+  // never changes at runtime and doesn't affect the rendered DOM shape
+  // (only event-handler behavior), so there's no hydration mismatch risk.
+  const supportsFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled;
 
   useEffect(() => {
+    if (!supportsFullscreen) return;
     function onChange() {
       setActive(document.fullscreenElement === overlayRef.current);
     }
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
+  }, [supportsFullscreen]);
 
   function open() {
-    // ponytail: 不支援 Fullscreen API 的瀏覽器（極少數）— promise 會
-    // reject，直接忽略即可，這是漸進增強，不是必要功能。
-    overlayRef.current?.requestFullscreen().catch(() => {});
+    if (!supportsFullscreen) {
+      setActive(true);
+      return;
+    }
+    // ponytail: if requestFullscreen() still somehow rejects (e.g. some
+    // permissions-policy edge case) fall back to the CSS-only overlay
+    // rather than silently doing nothing.
+    overlayRef.current?.requestFullscreen().catch(() => setActive(true));
   }
 
   function close() {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    setActive(false);
   }
 
   return (
@@ -46,21 +64,21 @@ export function FullscreenMatchButton({ match }: { match: MatchLike }) {
         onClick={open}
         title="全螢幕放大"
         aria-label="全螢幕放大"
-        className="flex h-6 w-6 items-center justify-center rounded border text-xs hover:bg-muted"
+        className="flex h-8 w-8 items-center justify-center rounded border text-sm hover:bg-muted"
       >
         ⛶
       </button>
       <div
         ref={overlayRef}
-        className={`text-white ${active ? 'fixed inset-0 z-50 flex' : 'hidden'}`}
+        className={`text-white ${active ? 'fixed inset-0 z-50 flex flex-col sm:flex-row' : 'hidden'}`}
       >
         <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-blue-950 text-center">
-          <div className="text-3xl font-semibold">{pairLabel(match.pairA)}</div>
-          <div className="font-mono text-8xl font-bold tabular-nums">{match.scoreA}</div>
+          <div className="text-2xl font-semibold sm:text-3xl">{pairLabel(match.pairA)}</div>
+          <div className="font-mono text-6xl font-bold tabular-nums sm:text-8xl">{match.scoreA}</div>
         </div>
         <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-rose-950 text-center">
-          <div className="text-3xl font-semibold">{pairLabel(match.pairB)}</div>
-          <div className="font-mono text-8xl font-bold tabular-nums">{match.scoreB}</div>
+          <div className="text-2xl font-semibold sm:text-3xl">{pairLabel(match.pairB)}</div>
+          <div className="font-mono text-6xl font-bold tabular-nums sm:text-8xl">{match.scoreB}</div>
         </div>
         <button
           type="button"
