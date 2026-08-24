@@ -70,6 +70,30 @@ function PairingCard({
   );
 }
 
+type CourtBlock = { key: string; courtName: string; courtOrder: number; matches: MatchFull[] };
+
+function CourtCard({ block, format }: { block: CourtBlock; format: 'friendly' | 'club' }) {
+  const completed = block.matches.filter((m) => m.status === 'completed').length;
+  const total = block.matches.length;
+  return (
+    <Card className="p-4">
+      <div className="mb-3 flex items-baseline justify-between">
+        <div className="text-lg font-semibold">
+          {block.courtOrder !== 9999 ? (
+            <CourtBadge name={block.courtName} order={block.courtOrder} />
+          ) : (
+            block.courtName
+          )}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {completed} / {total} 場已完成
+        </div>
+      </div>
+      <MatchList matches={block.matches} showGroup format={format} />
+    </Card>
+  );
+}
+
 type ViewMode = 'graph' | 'group' | 'court';
 
 export function MatchesTab({
@@ -127,7 +151,6 @@ export function MatchesTab({
   const waveBlocks = Array.from(waveMap.values()).sort((a, b) => a.wave - b.wave);
 
   // Group by court
-  type CourtBlock = { key: string; courtName: string; courtOrder: number; matches: MatchFull[] };
   const byCourtMap = new Map<string, CourtBlock>();
   for (const m of matches) {
     const key = m.court?.id ?? '__none__';
@@ -145,6 +168,40 @@ export function MatchesTab({
     c.matches.sort((a, b) =>
       a.roundNumber !== b.roundNumber ? a.roundNumber - b.roundNumber : a.matchOrder - b.matchOrder,
     );
+  }
+
+  // Club format's "場地列表" also nests by circulation first, then court,
+  // matching the admin scoring page's 依場地 structure and this view's own
+  // "分組列表" — a court is reused across every circulation, so each
+  // circulation gets its own court blocks (第1循環 → 場地1/2/3, 第2循環 →
+  // 場地1/2/3, ...).
+  type WaveCourtBlock = { wave: number; label: string; blocks: CourtBlock[] };
+  const byWaveCourt = new Map<number, WaveCourtBlock>();
+  if (format === 'club') {
+    for (const m of matches) {
+      const wave = m.roundNumber;
+      const wb = byWaveCourt.get(wave) ?? { wave, label: `第 ${wave} 循環`, blocks: [] };
+      const key = m.court?.id ?? '__none__';
+      let courtBlock = wb.blocks.find((b) => b.key === key);
+      if (!courtBlock) {
+        courtBlock = {
+          key,
+          courtName: m.court?.name ?? '未排場地',
+          courtOrder: m.court?.displayOrder ?? 9999,
+          matches: [],
+        };
+        wb.blocks.push(courtBlock);
+      }
+      courtBlock.matches.push(m);
+      byWaveCourt.set(wave, wb);
+    }
+  }
+  const waveCourtBlocks = Array.from(byWaveCourt.values()).sort((a, b) => a.wave - b.wave);
+  for (const wb of waveCourtBlocks) {
+    wb.blocks.sort((a, b) => a.courtOrder - b.courtOrder);
+    for (const b of wb.blocks) {
+      b.matches.sort((a, b) => a.matchOrder - b.matchOrder);
+    }
   }
 
   return (
@@ -213,27 +270,16 @@ export function MatchesTab({
             )))}
 
       {view === 'court' &&
-        byCourt.map((c) => {
-          const completed = c.matches.filter((m) => m.status === 'completed').length;
-          const total = c.matches.length;
-          return (
-            <Card key={c.key} className="p-4">
-              <div className="mb-3 flex items-baseline justify-between">
-                <div className="text-lg font-semibold">
-                  {c.courtOrder !== 9999 ? (
-                    <CourtBadge name={c.courtName} order={c.courtOrder} />
-                  ) : (
-                    c.courtName
-                  )}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {completed} / {total} 場已完成
-                </div>
+        (format === 'club'
+          ? waveCourtBlocks.map((wb) => (
+              <div key={wb.wave} className="space-y-4">
+                <div className="text-xl font-bold">{wb.label}</div>
+                {wb.blocks.map((c) => (
+                  <CourtCard key={c.key} block={c} format={format} />
+                ))}
               </div>
-              <MatchList matches={c.matches} showGroup format={format} />
-            </Card>
-          );
-        })}
+            ))
+          : byCourt.map((c) => <CourtCard key={c.key} block={c} format={format} />))}
 
       {view === 'graph' && (
         <div className="text-center text-xs text-muted-foreground">
