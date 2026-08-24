@@ -36,7 +36,7 @@ export function FullscreenMatchButton({ match }: { match: MatchLike }) {
   }
 
   function close() {
-    if (document.fullscreenElement) document.exitFullscreen();
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   }
 
   return (
