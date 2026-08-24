@@ -36,7 +36,6 @@ function CourtBadge({ name, order }: { name: string; order: number }) {
   return <Badge variant="outline" className={colorForIndex(order - 1)}>{name}</Badge>;
 }
 
-// 會內賽一場比賽橫跨兩組，兩組各自用自己的顏色，不是整條標題單一顏色。
 // 整個配對當作一個單位，用兩組中順序較前面那組的顏色代表整個配對
 // （例如 A vs D 用 A 的顏色），不是兩組各自上色。
 function PairingHeader({ matches, format }: { matches: MatchFull[]; format: 'friendly' | 'club' }) {
