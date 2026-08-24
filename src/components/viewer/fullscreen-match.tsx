@@ -49,12 +49,22 @@ export function FullscreenMatchButton({ match }: { match: MatchLike }) {
     // ponytail: if requestFullscreen() still somehow rejects (e.g. some
     // permissions-policy edge case) fall back to the CSS-only overlay
     // rather than silently doing nothing.
-    overlayRef.current?.requestFullscreen().catch(() => setActive(true));
+    overlayRef.current?.requestFullscreen().catch((e) => {
+      console.warn('[fullscreen] requestFullscreen rejected, falling back to CSS overlay:', e);
+      setActive(true);
+    });
   }
 
   function close() {
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    setActive(false);
+    if (document.fullscreenElement) {
+      // Real fullscreen: let the fullscreenchange listener drive `active`
+      // back to false once the browser actually exits, not before.
+      document.exitFullscreen().catch(() => {});
+    } else {
+      // CSS-fallback path never entered real fullscreen, so there's no
+      // fullscreenchange event coming — close it directly.
+      setActive(false);
+    }
   }
 
   return (
@@ -83,7 +93,8 @@ export function FullscreenMatchButton({ match }: { match: MatchLike }) {
         <button
           type="button"
           onClick={close}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 rounded border border-white/30 bg-black/40 px-4 py-2 text-sm hover:bg-white/10"
+          style={{ bottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+          className="absolute left-1/2 -translate-x-1/2 rounded border border-white/30 bg-black/40 px-4 py-2 text-sm hover:bg-white/10"
         >
           離開全螢幕
         </button>
