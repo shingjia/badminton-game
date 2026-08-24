@@ -54,11 +54,11 @@ export function FullscreenMatchButton({ match }: { match: MatchLike }) {
         ref={overlayRef}
         className={`text-white ${active ? 'fixed inset-0 z-50 flex' : 'hidden'}`}
       >
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-blue-950">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-blue-950 text-center">
           <div className="text-3xl font-semibold">{pairLabel(match.pairA)}</div>
           <div className="font-mono text-8xl font-bold tabular-nums">{match.scoreA}</div>
         </div>
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-rose-950">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-rose-950 text-center">
           <div className="text-3xl font-semibold">{pairLabel(match.pairB)}</div>
           <div className="font-mono text-8xl font-bold tabular-nums">{match.scoreB}</div>
         </div>
