@@ -31,6 +31,7 @@ model Tournament {
   groupCount    Int              @default(4)
   format        TournamentFormat @default(friendly)
   pointsPerGame Int              @default(21)
+  showPlayerLevel Boolean        @default(true)
   bannerIcon    String           @default("🏸")
   bannerColor   String           @default("red")
   bannerIconImage String?
