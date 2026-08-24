@@ -62,6 +62,20 @@ function BlockSection({
 }) {
   const completed = block.matches.filter((m) => m.status === 'completed').length;
   const first = block.matches[0];
+
+  // 依場地檢視下，會內賽同一個場地會跨好幾個循環使用，所以場地內部也
+  // 依循環（roundNumber）再分一層小標題，跟依分組檢視一致。block.matches
+  // 已經照 roundNumber 排序過了，這裡只是加上分隔標題，不改排序。
+  const byWaveInBlock = new Map<number, MatchFull[]>();
+  if (mode === 'court' && format === 'club') {
+    for (const m of block.matches) {
+      const arr = byWaveInBlock.get(m.roundNumber) ?? [];
+      arr.push(m);
+      byWaveInBlock.set(m.roundNumber, arr);
+    }
+  }
+  const waveEntries = [...byWaveInBlock.entries()].sort((a, b) => a[0] - b[0]);
+
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between">
@@ -80,11 +94,26 @@ function BlockSection({
           {completed} / {block.matches.length} 場已完成
         </div>
       </div>
-      <div className="grid gap-2">
-        {block.matches.map((m) => (
-          <ScoreRow key={m.id} match={m} revision={revision} format={format} />
-        ))}
-      </div>
+      {mode === 'court' && format === 'club' ? (
+        <div className="space-y-3">
+          {waveEntries.map(([wave, ms]) => (
+            <div key={wave}>
+              <div className="mb-1 text-sm font-semibold text-muted-foreground">第 {wave} 循環</div>
+              <div className="grid gap-2">
+                {ms.map((m) => (
+                  <ScoreRow key={m.id} match={m} revision={revision} format={format} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-2">
+          {block.matches.map((m) => (
+            <ScoreRow key={m.id} match={m} revision={revision} format={format} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
