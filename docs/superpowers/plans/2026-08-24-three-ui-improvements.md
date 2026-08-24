@@ -324,7 +324,7 @@ Expected: no errors.
 - [ ] **Step 9: Run the full unit suite**
 
 Run: `cd "C:\Private\badminton-game" && npx vitest run tests/unit`
-Expected: all tests pass (42 total: 41 pre-existing + 3 new `badge-colors.test.ts` tests).
+Expected: all tests pass (44 total: 41 pre-existing + 3 new `badge-colors.test.ts` tests).
 
 - [ ] **Step 10: Commit**
 
