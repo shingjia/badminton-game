@@ -281,20 +281,22 @@ function ScoreRow({
           return (
             <div key={side} className="flex flex-col items-center gap-2">
               <div className="text-center text-sm font-medium">{pairLabel(pair)}</div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <Button
                   size="icon"
                   variant="outline"
-                  className="h-12 w-12 text-2xl"
+                  className="h-10 w-10 text-xl sm:h-12 sm:w-12 sm:text-2xl"
                   onClick={() => bump(side, -1)}
                   aria-label="-1"
                 >
                   −
                 </Button>
-                <div className="w-14 text-center text-4xl font-bold tabular-nums">{score}</div>
+                <div className="w-10 text-center text-3xl font-bold tabular-nums sm:w-14 sm:text-4xl">
+                  {score}
+                </div>
                 <Button
                   size="icon"
-                  className="h-12 w-12 text-2xl"
+                  className="h-10 w-10 text-xl sm:h-12 sm:w-12 sm:text-2xl"
                   onClick={() => bump(side, +1)}
                   aria-label="+1"
                 >
