@@ -8,6 +8,7 @@ import { api } from '@/lib/api-client';
 import { colorForIndex } from '@/lib/badge-colors';
 import type { Match, Pair, Player, Court, Group } from '@prisma/client';
 import { MatchGraph } from '@/components/viewer/match-graph';
+import { FullscreenMatchButton } from '@/components/viewer/fullscreen-match';
 
 type PairWithPlayers = Pair & { player1: Player; player2: Player; group: Group };
 type MatchFull = Match & {
@@ -303,9 +304,12 @@ function MatchList({
                   {m.scoreA} - {m.scoreB}
                 </span>
               ) : playing ? (
-                <span className="whitespace-nowrap rounded bg-amber-500 px-2 py-0.5 font-mono text-sm font-bold text-white">
-                  {m.scoreA} - {m.scoreB}
-                </span>
+                <>
+                  <FullscreenMatchButton match={m} />
+                  <span className="whitespace-nowrap rounded bg-amber-500 px-2 py-0.5 font-mono text-sm font-bold text-white">
+                    {m.scoreA} - {m.scoreB}
+                  </span>
+                </>
               ) : (
                 <Badge variant="secondary" className="text-xs">
                   未開賽
