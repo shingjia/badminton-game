@@ -40,14 +40,20 @@ export function useTournamentSocket(tournamentId: string, handlers: Record<strin
       socket.on(e, fn);
     }
 
-    if (socket.connected) {
-      socket.emit('subscribe', { tournamentId });
-    } else {
-      socket.once('connect', () => socket.emit('subscribe', { tournamentId }));
-    }
+    // Re-subscribe on every connect, not just the first — the server
+    // assigns room membership per-connection (server.js's socket.join),
+    // so any reconnect (flaky mobile network, backgrounded tab, sleep/
+    // wake) starts with zero room membership. A `.once` listener here
+    // only re-subscribes the very first time, silently leaving
+    // reconnected clients unable to receive any further broadcasts
+    // (scores look "stuck") until a full page reload.
+    const onConnect = () => socket.emit('subscribe', { tournamentId });
+    socket.on('connect', onConnect);
+    if (socket.connected) onConnect();
 
     return () => {
       socket.emit('unsubscribe', { tournamentId });
+      socket.off('connect', onConnect);
       for (const e of events) {
         socket.off(e, listeners[e]);
       }
