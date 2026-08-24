@@ -62,20 +62,6 @@ function BlockSection({
 }) {
   const completed = block.matches.filter((m) => m.status === 'completed').length;
   const first = block.matches[0];
-
-  // 依場地檢視下，會內賽同一個場地會跨好幾個循環使用，所以場地內部也
-  // 依循環（roundNumber）再分一層小標題，跟依分組檢視一致。block.matches
-  // 已經照 roundNumber 排序過了，這裡只是加上分隔標題，不改排序。
-  const byWaveInBlock = new Map<number, MatchFull[]>();
-  if (mode === 'court' && format === 'club') {
-    for (const m of block.matches) {
-      const arr = byWaveInBlock.get(m.roundNumber) ?? [];
-      arr.push(m);
-      byWaveInBlock.set(m.roundNumber, arr);
-    }
-  }
-  const waveEntries = [...byWaveInBlock.entries()].sort((a, b) => a[0] - b[0]);
-
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between">
@@ -94,26 +80,11 @@ function BlockSection({
           {completed} / {block.matches.length} 場已完成
         </div>
       </div>
-      {mode === 'court' && format === 'club' ? (
-        <div className="space-y-3">
-          {waveEntries.map(([wave, ms]) => (
-            <div key={wave}>
-              <div className="mb-1 text-sm font-semibold text-muted-foreground">第 {wave} 循環</div>
-              <div className="grid gap-2">
-                {ms.map((m) => (
-                  <ScoreRow key={m.id} match={m} revision={revision} format={format} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="grid gap-2">
-          {block.matches.map((m) => (
-            <ScoreRow key={m.id} match={m} revision={revision} format={format} />
-          ))}
-        </div>
-      )}
+      <div className="grid gap-2">
+        {block.matches.map((m) => (
+          <ScoreRow key={m.id} match={m} revision={revision} format={format} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -189,6 +160,39 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
     );
   }
 
+  // Club format's "依場地" view nests the same way as "依分組" — a court
+  // is reused across every circulation, so each circulation gets its own
+  // court blocks (第1循環 → 場地1/2/3, 第2循環 → 場地1/2/3, ...), built the
+  // same shape as byWave above but keyed by court within each wave
+  // instead of by pairing.
+  const byWaveCourt = new Map<number, WaveBlock>();
+  if (tournament.format === 'club') {
+    for (const m of matches) {
+      const wave = m.roundNumber;
+      const wb = byWaveCourt.get(wave) ?? { wave, title: `第 ${wave} 循環`, blocks: [] };
+      const key = m.court?.id ?? '__none__';
+      let courtBlock = wb.blocks.find((b) => b.key === key);
+      if (!courtBlock) {
+        courtBlock = {
+          key,
+          title: m.court?.name ?? '未排場地',
+          order: m.court?.displayOrder ?? 9999,
+          matches: [],
+        };
+        wb.blocks.push(courtBlock);
+      }
+      courtBlock.matches.push(m);
+      byWaveCourt.set(wave, wb);
+    }
+  }
+  const waveCourtBlocks = Array.from(byWaveCourt.values()).sort((a, b) => a.wave - b.wave);
+  for (const wb of waveCourtBlocks) {
+    wb.blocks.sort((a, b) => a.order - b.order);
+    for (const b of wb.blocks) {
+      b.matches.sort((a, b) => a.matchOrder - b.matchOrder);
+    }
+  }
+
   const blocks = mode === 'group' ? groupBlocks : courtBlocks;
 
   return (
@@ -216,8 +220,8 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
         </div>
       )}
       <div className="space-y-4 border-l-4 border-l-red-500 pl-4">
-        {mode === 'group' && tournament.format === 'club'
-          ? waveBlocks.map((wb) => (
+        {tournament.format === 'club'
+          ? (mode === 'group' ? waveBlocks : waveCourtBlocks).map((wb) => (
               <div key={wb.wave}>
                 <div className="mb-2 text-lg font-semibold">{wb.title}</div>
                 <div className="space-y-4 pl-3">
