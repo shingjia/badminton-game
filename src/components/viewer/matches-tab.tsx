@@ -38,19 +38,15 @@ function CourtBadge({ name, order }: { name: string; order: number }) {
 }
 
 // 會內賽一場比賽橫跨兩組，兩組各自用自己的顏色，不是整條標題單一顏色。
+// 整個配對當作一個單位，用兩組中順序較前面那組的顏色代表整個配對
+// （例如 A vs D 用 A 的顏色），不是兩組各自上色。
 function PairingHeader({ matches, format }: { matches: MatchFull[]; format: 'friendly' | 'club' }) {
   const m = matches[0];
   if (format === 'friendly') {
     return <GroupBadge name={`${m.group.name} 組`} order={m.group.displayOrder ?? 1} />;
   }
   const [first, second] = [m.pairA.group, m.pairB.group].sort((a, b) => a.name.localeCompare(b.name));
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <GroupBadge name={`${first.name} 組`} order={first.displayOrder ?? 1} />
-      <span className="text-xs text-muted-foreground">vs</span>
-      <GroupBadge name={`${second.name} 組`} order={second.displayOrder ?? 1} />
-    </span>
-  );
+  return <GroupBadge name={`${first.name} 組 vs ${second.name} 組`} order={first.displayOrder ?? 1} />;
 }
 
 function PairingCard({
