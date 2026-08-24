@@ -52,24 +52,20 @@ export function FullscreenMatchButton({ match }: { match: MatchLike }) {
       </button>
       <div
         ref={overlayRef}
-        className={`flex-col items-center justify-center gap-8 bg-slate-900 p-8 text-white ${
-          active ? 'fixed inset-0 z-50 flex' : 'hidden'
-        }`}
+        className={`text-white ${active ? 'fixed inset-0 z-50 flex' : 'hidden'}`}
       >
-        <div className="grid w-full max-w-5xl grid-cols-2 gap-8 text-center">
-          <div>
-            <div className="mb-4 text-3xl font-semibold">{pairLabel(match.pairA)}</div>
-            <div className="font-mono text-8xl font-bold tabular-nums">{match.scoreA}</div>
-          </div>
-          <div>
-            <div className="mb-4 text-3xl font-semibold">{pairLabel(match.pairB)}</div>
-            <div className="font-mono text-8xl font-bold tabular-nums">{match.scoreB}</div>
-          </div>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-blue-950">
+          <div className="text-3xl font-semibold">{pairLabel(match.pairA)}</div>
+          <div className="font-mono text-8xl font-bold tabular-nums">{match.scoreA}</div>
+        </div>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-rose-950">
+          <div className="text-3xl font-semibold">{pairLabel(match.pairB)}</div>
+          <div className="font-mono text-8xl font-bold tabular-nums">{match.scoreB}</div>
         </div>
         <button
           type="button"
           onClick={close}
-          className="rounded border border-white/30 px-4 py-2 text-sm hover:bg-white/10"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 rounded border border-white/30 bg-black/40 px-4 py-2 text-sm hover:bg-white/10"
         >
           離開全螢幕
         </button>
