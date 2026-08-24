@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { colorForIndex } from '@/lib/badge-colors';
 import type { Court, Group, Match, Pair, Player, Tournament } from '@prisma/client';
 
 type PairWithPlayers = Pair & { player1: Player; player2: Player; group: Group };
@@ -27,6 +28,30 @@ function pairingOf(m: MatchFull) {
   return { key: `${first.id}-${second.id}`, label: `${first.name} 組 vs ${second.name} 組` };
 }
 
+function GroupBadge({ name, order }: { name: string; order: number }) {
+  return <Badge className={colorForIndex(order - 1)}>{name}</Badge>;
+}
+
+function CourtBadge({ name, order }: { name: string; order: number }) {
+  return <Badge className={colorForIndex(order - 1)}>{name}</Badge>;
+}
+
+// 會內賽一場比賽橫跨兩組，兩組各自用自己的顏色，不是整條標題單一顏色。
+function PairingHeader({ matches, format }: { matches: MatchFull[]; format: 'friendly' | 'club' }) {
+  const m = matches[0];
+  if (format === 'friendly') {
+    return <GroupBadge name={`${m.group.name} 組`} order={m.group.displayOrder ?? 1} />;
+  }
+  const [first, second] = [m.pairA.group, m.pairB.group].sort((a, b) => a.name.localeCompare(b.name));
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <GroupBadge name={`${first.name} 組`} order={first.displayOrder ?? 1} />
+      <span className="text-xs text-muted-foreground">vs</span>
+      <GroupBadge name={`${second.name} 組`} order={second.displayOrder ?? 1} />
+    </span>
+  );
+}
+
 function groupByPairing(matches: MatchFull[], format: 'friendly' | 'club') {
   const byPairing = new Map<string, { label: string; matches: MatchFull[] }>();
   for (const m of matches) {
@@ -44,7 +69,9 @@ function PairingBlocks({ matches, format }: { matches: MatchFull[]; format: 'fri
     <div className="space-y-4">
       {groupByPairing(matches, format).map(([key, block]) => (
         <Card key={key} className="p-3">
-          <div className="mb-2 font-semibold">{block.label}</div>
+          <div className="mb-2">
+            <PairingHeader matches={block.matches} format={format} />
+          </div>
           <div className="grid gap-2 md:grid-cols-2">
             {block.matches.map((m) => (
               <div key={m.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
@@ -52,7 +79,7 @@ function PairingBlocks({ matches, format }: { matches: MatchFull[]; format: 'fri
                   <span className="text-muted-foreground">#{m.matchOrder}</span>{' '}
                   {pairLabel(m.pairA)} <span className="mx-1">vs</span> {pairLabel(m.pairB)}
                 </div>
-                {m.court && <Badge variant="outline" className="text-xs">{m.court.name}</Badge>}
+                {m.court && <CourtBadge name={m.court.name} order={m.court.displayOrder ?? 1} />}
               </div>
             ))}
           </div>
