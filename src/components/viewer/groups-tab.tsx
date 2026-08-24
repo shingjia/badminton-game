@@ -11,10 +11,12 @@ export function GroupsTab({
   tournamentId,
   revision,
   format,
+  showLevel,
 }: {
   tournamentId: string;
   revision: number;
   format: 'friendly' | 'club';
+  showLevel: boolean;
 }) {
   const [groups, setGroups] = useState<GroupWithData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +52,7 @@ export function GroupsTab({
                     <span key={p.id}>
                       {i > 0 && '、'}
                       {p.name}
-                      {p.level && (
+                      {showLevel && p.level && (
                         <span className="text-muted-foreground">({p.level})</span>
                       )}
                     </span>

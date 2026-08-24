@@ -9,9 +9,11 @@ import type { Player } from '@prisma/client';
 export function PlayersTab({
   tournamentId,
   revision,
+  showLevel,
 }: {
   tournamentId: string;
   revision: number;
+  showLevel: boolean;
 }) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +36,7 @@ export function PlayersTab({
         <Card key={p.id} className="p-4">
           <div className="flex items-start justify-between">
             <div className="font-medium">{p.name}</div>
-            {p.level && <Badge variant="outline">{p.level}</Badge>}
+            {showLevel && p.level && <Badge variant="outline">{p.level}</Badge>}
           </div>
         </Card>
       ))}

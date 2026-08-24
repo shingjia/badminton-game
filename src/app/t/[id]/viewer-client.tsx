@@ -48,10 +48,15 @@ export function ViewerClient({
             <TabsTrigger value="standings">排名</TabsTrigger>
           </TabsList>
           <TabsContent value="players">
-            <PlayersTab tournamentId={tournamentId} revision={revision} />
+            <PlayersTab tournamentId={tournamentId} revision={revision} showLevel={tournament.showPlayerLevel} />
           </TabsContent>
           <TabsContent value="groups">
-            <GroupsTab tournamentId={tournamentId} revision={revision} format={tournament.format} />
+            <GroupsTab
+              tournamentId={tournamentId}
+              revision={revision}
+              format={tournament.format}
+              showLevel={tournament.showPlayerLevel}
+            />
           </TabsContent>
           <TabsContent value="matches">
             <MatchesTab tournamentId={tournamentId} revision={revision} format={tournament.format} />
