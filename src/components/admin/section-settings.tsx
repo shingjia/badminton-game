@@ -24,6 +24,7 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
   const [name, setName] = useState(tournament.name);
   const [groupCount, setGroupCount] = useState(tournament.groupCount);
   const [pointsPerGame, setPointsPerGame] = useState(tournament.pointsPerGame);
+  const [showPlayerLevel, setShowPlayerLevel] = useState(tournament.showPlayerLevel);
   const [bannerIcon, setBannerIcon] = useState(tournament.bannerIcon);
   const [bannerColor, setBannerColor] = useState(tournament.bannerColor);
   const [bannerIconImage, setBannerIconImage] = useState<string | null>(tournament.bannerIconImage);
@@ -41,6 +42,7 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
           name,
           groupCount,
           pointsPerGame,
+          showPlayerLevel,
           bannerIcon,
           bannerColor,
           bannerIconImage,
@@ -113,6 +115,19 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
               onChange={(e) => setPointsPerGame(Number(e.target.value))}
             />
           </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            id="s-show-level"
+            type="checkbox"
+            checked={showPlayerLevel}
+            onChange={(e) => setShowPlayerLevel(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300"
+          />
+          <Label htmlFor="s-show-level" className="cursor-pointer font-normal">
+            觀眾頁顯示球員程度
+          </Label>
         </div>
       </Card>
 
