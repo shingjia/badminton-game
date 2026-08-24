@@ -187,10 +187,11 @@ export function MatchesTab({
         [...byGroup.entries()].map(([key, block]) => {
           const completed = block.matches.filter((m) => m.status === 'completed').length;
           const total = block.matches.length;
+          const order = block.matches[0]?.group.displayOrder ?? 1;
           return (
             <Card key={key} className="p-4">
               <div className="mb-3 flex items-center justify-between">
-                <span className="inline-block rounded-lg bg-slate-800 px-4 py-1.5 text-xl font-bold text-white shadow">
+                <span className={`inline-block rounded-lg px-4 py-1.5 text-xl font-bold shadow ${colorForIndex(order - 1)}`}>
                   {block.label}
                 </span>
                 <div className="text-xs text-muted-foreground">
