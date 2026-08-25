@@ -1,107 +1,13 @@
 export type MatchResult = {
   pairAGroupId: string;
   pairBGroupId: string;
+  roundNumber: number;
   status: 'pending' | 'completed';
   scoreA: number;
   scoreB: number;
   pairAPlayerIds: [string, string];
   pairBPlayerIds: [string, string];
 };
-
-export type PlayerStandingRow = {
-  playerId: string;
-  groupId: string;
-  wins: number;
-  losses: number;
-  played: number;
-  pointDiff: number;
-  pointsFor: number;
-  pointsAgainst: number;
-  rank: number;
-};
-
-type UnrankedRow = Omit<PlayerStandingRow, 'rank'>;
-
-/**
- * Aggregates completed matches into per-player win/loss records, ranked
- * within each group. A club-format match has no stable "team" — each
- * player's own perspective (their side's score vs the other side's) is
- * tallied individually, so the same player accumulates stats across every
- * match they appeared in, regardless of who they were partnered with.
- *
- * A match now spans two different groups (group A's roster plays group
- * B's), so each side's players are attributed to *their own* group
- * (pairAGroupId / pairBGroupId) — never to the other side's group.
- */
-export function computePlayerStandings(matches: MatchResult[]): PlayerStandingRow[] {
-  const byPlayer = new Map<string, UnrankedRow>();
-
-  function row(playerId: string, groupId: string): UnrankedRow {
-    let r = byPlayer.get(playerId);
-    if (!r) {
-      r = { playerId, groupId, wins: 0, losses: 0, played: 0, pointDiff: 0, pointsFor: 0, pointsAgainst: 0 };
-      byPlayer.set(playerId, r);
-    }
-    return r;
-  }
-
-  function tally(playerIds: [string, string], groupId: string, myScore: number, oppScore: number) {
-    for (const playerId of playerIds) {
-      const r = row(playerId, groupId);
-      r.played++;
-      r.pointsFor += myScore;
-      r.pointsAgainst += oppScore;
-      r.pointDiff += myScore - oppScore;
-      if (myScore > oppScore) r.wins++;
-      else if (myScore < oppScore) r.losses++;
-    }
-  }
-
-  for (const m of matches) {
-    if (m.status !== 'completed') continue;
-    tally(m.pairAPlayerIds, m.pairAGroupId, m.scoreA, m.scoreB);
-    tally(m.pairBPlayerIds, m.pairBGroupId, m.scoreB, m.scoreA);
-  }
-
-  const byGroup = new Map<string, UnrankedRow[]>();
-  for (const r of byPlayer.values()) {
-    const arr = byGroup.get(r.groupId) ?? [];
-    arr.push(r);
-    byGroup.set(r.groupId, arr);
-  }
-
-  const result: PlayerStandingRow[] = [];
-  for (const rows of byGroup.values()) {
-    result.push(...rankGroup(rows));
-  }
-  return result;
-}
-
-/**
- * Sorts by wins desc, losses asc, points-for desc, points-against asc, and
- * assigns ranks using SQL RANK() semantics: tied rows share the same rank,
- * and the next distinct row's rank skips ahead by the number of ties
- * (e.g. two players tied for 1st means the next rank is 3, not 2).
- */
-function rankGroup(rows: UnrankedRow[]): PlayerStandingRow[] {
-  const sorted = [...rows].sort(
-    (a, b) =>
-      b.wins - a.wins ||
-      a.losses - b.losses ||
-      b.pointsFor - a.pointsFor ||
-      a.pointsAgainst - b.pointsAgainst,
-  );
-  const result: PlayerStandingRow[] = [];
-  let rank = 0;
-  let prevKey: string | null = null;
-  sorted.forEach((r, i) => {
-    const key = `${r.wins}|${r.losses}|${r.pointsFor}|${r.pointsAgainst}`;
-    if (key !== prevKey) rank = i + 1;
-    prevKey = key;
-    result.push({ ...r, rank });
-  });
-  return result;
-}
 
 export type GroupStandingRow = {
   groupId: string;
@@ -114,34 +20,97 @@ export type GroupStandingRow = {
   rank: number;
 };
 
+type UnrankedRow = Omit<GroupStandingRow, 'rank'>;
+
 /**
- * Ranks a club-format tournament's GROUPS against each other (not players
- * within a group) — e.g. "Group A did best overall". A group's totals are
- * just the sum of every one of its players' individual stats (every match
- * played by anyone in the group counts once toward the group's wins/losses/
- * points, on top of already counting toward that player's own record).
+ * Ranks a club-format tournament's GROUPS against each other. A club
+ * match's win/loss is decided at the CIRCULATION level (one
+ * roundNumber's group-A-vs-group-B pairing, which spans several
+ * individual matches -- e.g. 3 doubles pairs from a 6-person group all
+ * playing the other group's 3 pairs) -- not per individual match. Once
+ * every match in a circulation is completed, whichever group's combined
+ * score across all of them is higher gets 1 win for that circulation
+ * (the other gets 1 loss). A circulation with any match still pending
+ * contributes nothing to wins/losses yet.
  *
- * Order: wins desc, then points-for desc, then points-against asc. Ranks
- * use SQL RANK() semantics (ties share a rank, next rank skips ahead).
+ * points-for/points-against are a straight sum of every completed
+ * individual match's own score, counted once per match (not once per
+ * player) -- these update live regardless of whether their circulation's
+ * win/loss has been decided yet.
+ *
+ * Ranking: wins desc, then points-for desc, then points-against asc
+ * (fewer conceded ranks higher). Ranks use SQL RANK() semantics: tied
+ * rows share a rank, the next distinct row's rank skips ahead by the
+ * number of ties.
  */
 export function computeGroupStandings(matches: MatchResult[]): GroupStandingRow[] {
-  const byGroup = new Map<string, Omit<GroupStandingRow, 'rank'>>();
-  for (const p of computePlayerStandings(matches)) {
-    let g = byGroup.get(p.groupId);
+  const byGroup = new Map<string, UnrankedRow>();
+  function group(groupId: string): UnrankedRow {
+    let g = byGroup.get(groupId);
     if (!g) {
-      g = { groupId: p.groupId, wins: 0, losses: 0, played: 0, pointDiff: 0, pointsFor: 0, pointsAgainst: 0 };
-      byGroup.set(p.groupId, g);
+      g = { groupId, wins: 0, losses: 0, played: 0, pointDiff: 0, pointsFor: 0, pointsAgainst: 0 };
+      byGroup.set(groupId, g);
     }
-    g.wins += p.wins;
-    g.losses += p.losses;
-    g.played += p.played;
-    g.pointDiff += p.pointDiff;
-    g.pointsFor += p.pointsFor;
-    g.pointsAgainst += p.pointsAgainst;
+    return g;
+  }
+
+  // Every group that's ever appeared shows up in the table, even at
+  // 0/0/0 before anything's decided.
+  for (const m of matches) {
+    group(m.pairAGroupId);
+    group(m.pairBGroupId);
+  }
+
+  // points-for/points-against: once per completed match, not once per player.
+  for (const m of matches) {
+    if (m.status !== 'completed') continue;
+    const a = group(m.pairAGroupId);
+    a.pointsFor += m.scoreA;
+    a.pointsAgainst += m.scoreB;
+    a.pointDiff += m.scoreA - m.scoreB;
+    const b = group(m.pairBGroupId);
+    b.pointsFor += m.scoreB;
+    b.pointsAgainst += m.scoreA;
+    b.pointDiff += m.scoreB - m.scoreA;
+  }
+
+  // wins/losses: one per fully-completed circulation, decided by each
+  // side's combined score across every match in that circulation.
+  const byCirculation = new Map<string, MatchResult[]>();
+  for (const m of matches) {
+    const key = `${m.roundNumber}|${m.pairAGroupId}|${m.pairBGroupId}`;
+    const arr = byCirculation.get(key) ?? [];
+    arr.push(m);
+    byCirculation.set(key, arr);
+  }
+  for (const bucket of byCirculation.values()) {
+    if (bucket.some((m) => m.status !== 'completed')) continue;
+    const { pairAGroupId, pairBGroupId } = bucket[0];
+    let totalA = 0;
+    let totalB = 0;
+    for (const m of bucket) {
+      totalA += m.scoreA;
+      totalB += m.scoreB;
+    }
+    // ponytail: an exact tie isn't possible under this tournament's rules
+    // (confirmed with the organizer), so the `else` branch below is an
+    // arbitrary-but-non-crashing default rather than something expected
+    // to actually happen.
+    if (totalA > totalB) {
+      group(pairAGroupId).wins++;
+      group(pairBGroupId).losses++;
+    } else {
+      group(pairBGroupId).wins++;
+      group(pairAGroupId).losses++;
+    }
+  }
+
+  for (const g of byGroup.values()) {
+    g.played = g.wins + g.losses;
   }
 
   const sorted = [...byGroup.values()].sort(
-    (a, b) => b.wins - a.wins || b.pointsFor - a.pointsFor || a.pointsAgainst - b.pointsAgainst,
+    (x, y) => y.wins - x.wins || y.pointsFor - x.pointsFor || x.pointsAgainst - y.pointsAgainst,
   );
   const result: GroupStandingRow[] = [];
   let rank = 0;
