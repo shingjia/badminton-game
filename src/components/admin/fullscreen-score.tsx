@@ -206,8 +206,24 @@ export function FullscreenScoreButton({
         ref={overlayRef}
         className={`text-white ${active ? 'fixed inset-0 z-50 flex flex-col sm:flex-row' : 'hidden'}`}
       >
+        {/*
+          ponytail: key includes `swapped` so every toggle fully unmounts the
+          old panel and mounts a brand-new one, instead of updating an existing
+          node's className in place. This is the THIRD fix attempt for a
+          real-device-confirmed WebKit paint glitch (wrong color at the outer
+          screen edges after swap) -- attempts 1 (ae7722b, avoid DOM reorder)
+          and 2 (330ad46/e54965e, transform-gpu early layer promotion) did NOT
+          fix it on retest. A diagnostic screenshot (via the temporary panel
+          below) proved the underlying DOM/CSSOM state is 100% correct at the
+          moment of the glitch -- exact right background-color, exact right
+          position, zero gap -- meaning this is a pure WebKit repaint defect,
+          not a logic bug. A freshly-created DOM node's first paint has no
+          stale prior color to incorrectly carry over, which sidesteps the
+          specific operation (updating an EXISTING node's style) that both
+          prior attempts still relied on and that WebKit seems to botch here.
+        */}
         <ScoreSide
-          key="slot-1"
+          key={`slot-1-${swapped}`}
           ref={slot1Ref}
           side={firstSide}
           label={labelOf[firstSide]}
@@ -216,7 +232,7 @@ export function FullscreenScoreButton({
           onBump={onBump}
         />
         <ScoreSide
-          key="slot-2"
+          key={`slot-2-${swapped}`}
           ref={slot2Ref}
           side={secondSide}
           label={labelOf[secondSide]}
