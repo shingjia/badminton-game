@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { api } from '@/lib/api-client';
+import { useSafeEffect } from '@/lib/use-safe-effect';
 import type { Group, Player, Pair } from '@prisma/client';
 
 type PairRow = {
@@ -55,25 +56,21 @@ export function StandingsTab({
   const [groups, setGroups] = useState<GroupWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
+  useSafeEffect((isCancelled) => {
     setLoading(true);
     Promise.all([
       api<GroupBlock[] | GroupRow[]>(`/api/tournaments/${tournamentId}/standings`),
       api<GroupWithRelations[]>(`/api/tournaments/${tournamentId}/groups`),
     ])
       .then(([s, g]) => {
-        if (cancelled) return;
+        if (isCancelled()) return;
         if (format === 'club') setGroupRows(s as GroupRow[]);
         else setBlocks(s as GroupBlock[]);
         setGroups(g);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!isCancelled()) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
   }, [tournamentId, revision, format]);
 
   const groupName = (id: string) => groups.find((g) => g.id === id)?.name ?? '';

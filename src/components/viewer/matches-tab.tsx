@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api-client';
+import { useSafeEffect } from '@/lib/use-safe-effect';
 import { colorForIndex } from '@/lib/badge-colors';
 import type { Match, Pair, Player, Court, Group } from '@prisma/client';
 import { MatchGraph } from '@/components/viewer/match-graph';
@@ -109,19 +110,15 @@ export function MatchesTab({
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>(format === 'club' ? 'group' : 'graph');
 
-  useEffect(() => {
-    let cancelled = false;
+  useSafeEffect((isCancelled) => {
     setLoading(true);
     api<MatchFull[]>(`/api/tournaments/${tournamentId}/matches`)
       .then((data) => {
-        if (!cancelled) setMatches(data);
+        if (!isCancelled()) setMatches(data);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!isCancelled()) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
   }, [tournamentId, revision]);
 
   if (loading && matches.length === 0) return <p className="py-6 text-muted-foreground">載入中…</p>;

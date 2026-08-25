@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { api } from '@/lib/api-client';
+import { useSafeEffect } from '@/lib/use-safe-effect';
 import type { Group, Player, Pair } from '@prisma/client';
 
 type GroupWithData = Group & { players: Player[]; pairs: Pair[] };
@@ -21,19 +22,15 @@ export function GroupsTab({
   const [groups, setGroups] = useState<GroupWithData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
+  useSafeEffect((isCancelled) => {
     setLoading(true);
     api<GroupWithData[]>(`/api/tournaments/${tournamentId}/groups`)
       .then((data) => {
-        if (!cancelled) setGroups(data);
+        if (!isCancelled()) setGroups(data);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!isCancelled()) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
   }, [tournamentId, revision]);
 
   if (loading && groups.length === 0) return <p className="py-6 text-muted-foreground">載入中…</p>;

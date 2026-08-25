@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api-client';
+import { useSafeEffect } from '@/lib/use-safe-effect';
 import type { Player } from '@prisma/client';
 
 export function PlayersTab({
@@ -18,19 +19,15 @@ export function PlayersTab({
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
+  useSafeEffect((isCancelled) => {
     setLoading(true);
     api<Player[]>(`/api/tournaments/${tournamentId}/players`)
       .then((data) => {
-        if (!cancelled) setPlayers(data);
+        if (!isCancelled()) setPlayers(data);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!isCancelled()) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
   }, [tournamentId, revision]);
 
   if (loading && players.length === 0)
