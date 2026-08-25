@@ -117,7 +117,7 @@ function SwapDebugPanel({
   }, [swapped, slot1Ref, slot2Ref]);
 
   return (
-    <pre className="absolute left-1 top-1 z-[60] max-w-[90vw] whitespace-pre-wrap break-all rounded bg-black/80 p-1 text-[9px] leading-tight text-lime-300">
+    <pre className="pointer-events-none absolute left-1/2 top-1 z-[60] max-w-[90vw] -translate-x-1/2 whitespace-pre-wrap break-all rounded bg-black/80 p-1 text-[9px] leading-tight text-lime-300">
       {info}
     </pre>
   );
