@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { useSafeEffect } from '@/lib/use-safe-effect';
 import type { Group, Player, Pair, Tournament } from '@prisma/client';
 
 type GroupWithData = Group & { players: Player[]; pairs: Pair[] };
@@ -37,17 +38,13 @@ export function SectionGroups({
   // 或分組公正性影響，賽事結束前都能改。
   const canEditNames = tournament.status !== 'finished';
 
-  useEffect(() => {
-    let cancelled = false;
+  useSafeEffect((isCancelled) => {
     api<GroupWithData[]>(`/api/tournaments/${tournament.id}/groups`).then((data) => {
-      if (!cancelled) setGroups(data);
+      if (!isCancelled()) setGroups(data);
     });
     api<Player[]>(`/api/tournaments/${tournament.id}/players`).then((data) => {
-      if (!cancelled) setPlayers(data);
+      if (!isCancelled()) setPlayers(data);
     });
-    return () => {
-      cancelled = true;
-    };
   }, [tournament.id, revision]);
 
   // 分組完球員預設沒有棒次；只要組內有人棒次是空的，就依目前順序

@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { useSafeEffect } from '@/lib/use-safe-effect';
 import { BulkImportDialog } from '@/components/admin/bulk-import-dialog';
 import type { Player, Tournament } from '@prisma/client';
 
@@ -24,14 +25,10 @@ export function SectionPlayers({
   const [level, setLevel] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    let cancelled = false;
+  useSafeEffect((isCancelled) => {
     api<Player[]>(`/api/tournaments/${tournament.id}/players`).then((data) => {
-      if (!cancelled) setPlayers(data);
+      if (!isCancelled()) setPlayers(data);
     });
-    return () => {
-      cancelled = true;
-    };
   }, [tournament.id, revision]);
 
   function toggleSelected(id: string) {

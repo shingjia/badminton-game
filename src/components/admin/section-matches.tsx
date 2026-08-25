@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { useSafeEffect } from '@/lib/use-safe-effect';
 import { colorForIndex } from '@/lib/badge-colors';
 import type { Court, Group, Match, Pair, Player, Tournament } from '@prisma/client';
 
@@ -100,19 +101,17 @@ export function SectionMatches({ tournament, revision }: { tournament: Tournamen
   const [groupCount, setGroupCount] = useState(0);
   const [pendingWave, setPendingWave] = useState<number | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  useSafeEffect((isCancelled) => {
     api<MatchFull[]>(`/api/tournaments/${tournament.id}/matches`).then((data) => {
-      if (!cancelled) setMatches(data);
+      if (!isCancelled()) setMatches(data);
     });
-    return () => {
-      cancelled = true;
-    };
   }, [tournament.id, revision]);
 
-  useEffect(() => {
+  useSafeEffect((isCancelled) => {
     if (tournament.format !== 'club') return;
-    api<Group[]>(`/api/tournaments/${tournament.id}/groups`).then((gs) => setGroupCount(gs.length));
+    api<Group[]>(`/api/tournaments/${tournament.id}/groups`).then((gs) => {
+      if (!isCancelled()) setGroupCount(gs.length);
+    });
   }, [tournament.id, tournament.format]);
 
   async function generate(wave?: number) {

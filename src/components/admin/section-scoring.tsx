@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { api, ApiError } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { useSafeEffect } from '@/lib/use-safe-effect';
 import { colorForIndex } from '@/lib/badge-colors';
 import type { Court, Group, Match, Pair, Player, Tournament } from '@prisma/client';
 
@@ -96,14 +97,10 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
   const [mode, setMode] = useState<GroupingMode>('group');
   const editable = tournament.status === 'in_progress' || tournament.status === 'finished';
 
-  useEffect(() => {
-    let cancelled = false;
+  useSafeEffect((isCancelled) => {
     api<MatchFull[]>(`/api/tournaments/${tournament.id}/matches`).then((data) => {
-      if (!cancelled) setMatches(data);
+      if (!isCancelled()) setMatches(data);
     });
-    return () => {
-      cancelled = true;
-    };
   }, [tournament.id, revision]);
 
   // Group by group (friendly) or by pairing (club — a match spans two

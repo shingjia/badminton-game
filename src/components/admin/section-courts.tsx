@@ -1,24 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api-client';
+import { useSafeEffect } from '@/lib/use-safe-effect';
 import type { Court, Tournament } from '@prisma/client';
 
 export function SectionCourts({ tournament }: { tournament: Tournament }) {
   const [courts, setCourts] = useState<Court[]>([]);
   const [newCourt, setNewCourt] = useState('');
 
-  useEffect(() => {
-    let cancelled = false;
+  useSafeEffect((isCancelled) => {
     api<Court[]>(`/api/tournaments/${tournament.id}/courts`).then((data) => {
-      if (!cancelled) setCourts(data);
+      if (!isCancelled()) setCourts(data);
     });
-    return () => {
-      cancelled = true;
-    };
   }, [tournament.id]);
 
   async function addCourt() {
