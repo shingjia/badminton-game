@@ -56,17 +56,24 @@ export function StandingsTab({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     Promise.all([
       api<GroupBlock[] | GroupRow[]>(`/api/tournaments/${tournamentId}/standings`),
       api<GroupWithRelations[]>(`/api/tournaments/${tournamentId}/groups`),
     ])
       .then(([s, g]) => {
+        if (cancelled) return;
         if (format === 'club') setGroupRows(s as GroupRow[]);
         else setBlocks(s as GroupBlock[]);
         setGroups(g);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [tournamentId, revision, format]);
 
   const groupName = (id: string) => groups.find((g) => g.id === id)?.name ?? '';

@@ -19,10 +19,18 @@ export function PlayersTab({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     api<Player[]>(`/api/tournaments/${tournamentId}/players`)
-      .then(setPlayers)
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!cancelled) setPlayers(data);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [tournamentId, revision]);
 
   if (loading && players.length === 0)

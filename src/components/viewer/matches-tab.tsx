@@ -110,10 +110,18 @@ export function MatchesTab({
   const [view, setView] = useState<ViewMode>(format === 'club' ? 'group' : 'graph');
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     api<MatchFull[]>(`/api/tournaments/${tournamentId}/matches`)
-      .then(setMatches)
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!cancelled) setMatches(data);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [tournamentId, revision]);
 
   if (loading && matches.length === 0) return <p className="py-6 text-muted-foreground">載入中…</p>;

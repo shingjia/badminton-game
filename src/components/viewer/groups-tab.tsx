@@ -22,10 +22,18 @@ export function GroupsTab({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     api<GroupWithData[]>(`/api/tournaments/${tournamentId}/groups`)
-      .then(setGroups)
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!cancelled) setGroups(data);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [tournamentId, revision]);
 
   if (loading && groups.length === 0) return <p className="py-6 text-muted-foreground">載入中…</p>;
