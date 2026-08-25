@@ -83,11 +83,11 @@ export function FullscreenMatchButton({ match }: { match: MatchLike }) {
         className={`text-white ${active ? 'fixed inset-0 z-50 flex flex-col sm:flex-row' : 'hidden'}`}
       >
         <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-blue-950 text-center">
-          <div className="text-2xl font-semibold sm:text-3xl">{pairLabel(match.pairA)}</div>
+          <div className="text-3xl font-semibold sm:text-5xl">{pairLabel(match.pairA)}</div>
           <div className="font-mono text-6xl font-bold tabular-nums sm:text-8xl">{match.scoreA}</div>
         </div>
         <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-rose-950 text-center">
-          <div className="text-2xl font-semibold sm:text-3xl">{pairLabel(match.pairB)}</div>
+          <div className="text-3xl font-semibold sm:text-5xl">{pairLabel(match.pairB)}</div>
           <div className="font-mono text-6xl font-bold tabular-nums sm:text-8xl">{match.scoreB}</div>
         </div>
         <button

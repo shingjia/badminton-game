@@ -4,6 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 
 type Side = 'A' | 'B';
 
+const SIDE_STYLE: Record<Side, string> = {
+  A: 'bg-blue-950',
+  B: 'bg-rose-950',
+};
+
 function ScoreSide({
   side,
   label,
@@ -83,6 +88,7 @@ export function FullscreenScoreButton({
   onBump: (side: Side, delta: number) => void;
 }) {
   const [active, setActive] = useState(false);
+  const [swapped, setSwapped] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const supportsFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled;
 
@@ -114,6 +120,10 @@ export function FullscreenScoreButton({
     }
   }
 
+  const order: Side[] = swapped ? ['B', 'A'] : ['A', 'B'];
+  const labelOf: Record<Side, string> = { A: labelA, B: labelB };
+  const scoreOf: Record<Side, number> = { A: scoreA, B: scoreB };
+
   return (
     <>
       <button
@@ -129,8 +139,25 @@ export function FullscreenScoreButton({
         ref={overlayRef}
         className={`text-white ${active ? 'fixed inset-0 z-50 flex flex-col sm:flex-row' : 'hidden'}`}
       >
-        <ScoreSide side="A" label={labelA} score={scoreA} bg="bg-blue-950" onBump={onBump} />
-        <ScoreSide side="B" label={labelB} score={scoreB} bg="bg-rose-950" onBump={onBump} />
+        {order.map((side) => (
+          <ScoreSide
+            key={side}
+            side={side}
+            label={labelOf[side]}
+            score={scoreOf[side]}
+            bg={SIDE_STYLE[side]}
+            onBump={onBump}
+          />
+        ))}
+        <button
+          type="button"
+          onClick={() => setSwapped((s) => !s)}
+          title="交換顯示"
+          aria-label="交換顯示位置"
+          className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/30 text-2xl hover:bg-white/20"
+        >
+          ⇄
+        </button>
         <button
           type="button"
           onClick={close}
