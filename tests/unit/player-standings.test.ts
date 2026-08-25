@@ -115,4 +115,22 @@ describe('computeGroupStandings', () => {
     expect(a.wins).toBe(1);
     expect(a.losses).toBe(1);
   });
+
+  it('when total AND overall points-against also tie exactly (fully undecidable), both groups get credited with the win', () => {
+    const matches: MatchResult[] = [
+      match({ round: 1, a: 'A', b: 'B', scoreA: 11, scoreB: 6 }),
+      match({ round: 1, a: 'A', b: 'B', scoreA: 6, scoreB: 11 }),
+    ];
+    // totalA = 11+6 = 17, totalB = 6+11 = 17 -- tied. With no other
+    // matches for either group, overall pointsAgainst is also forced
+    // tied (a.pointsAgainst = totalB = 17, b.pointsAgainst = totalA =
+    // 17) -- genuinely undecidable.
+    const rows = computeGroupStandings(matches);
+    const a = rows.find((r) => r.groupId === 'A')!;
+    const b = rows.find((r) => r.groupId === 'B')!;
+    expect(a.wins).toBe(1);
+    expect(a.losses).toBe(0);
+    expect(b.wins).toBe(1);
+    expect(b.losses).toBe(0);
+  });
 });

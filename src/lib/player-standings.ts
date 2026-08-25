@@ -43,7 +43,9 @@ type UnrankedRow = Omit<GroupStandingRow, 'rank'>;
  * broken by each group's OVERALL points-against across the whole
  * tournament so far (fewer conceded wins the circulation too) -- the
  * same metric already used as the final tie-break for the whole
- * standings table below.
+ * standings table below. If THAT also ties (fully undecidable), both
+ * groups are credited with the circulation's win and neither takes a
+ * loss.
  *
  * Ranking: wins desc, then points-for desc, then points-against asc
  * (fewer conceded ranks higher). Ranks use SQL RANK() semantics: tied
@@ -102,26 +104,36 @@ export function computeGroupStandings(matches: MatchResult[]): GroupStandingRow[
     const a = group(pairAGroupId);
     const b = group(pairBGroupId);
     // A circulation's combined score can tie even though no individual
-    // match tied (e.g. 3 matches at +5/+5/-10 nets to a 0 difference) --
-    // confirmed with the organizer: break it by each group's OVERALL
-    // points-against across the whole tournament so far (fewer conceded
-    // wins this circulation too), the same metric already used as the
-    // final tie-break for the whole standings table. Standings recompute
-    // fresh from current data every time, so this circulation's outcome
-    // can in principle shift as more matches complete elsewhere -- that's
-    // consistent with every other running total in this table being
-    // provisional until the tournament finishes, not a new problem this
-    // introduces.
-    // ponytail: if pointsAgainst ALSO ties (stacking a second unlikely
-    // tie on the first), falls through to awarding B -- arbitrary but
-    // non-crashing, not expected to actually happen.
-    const aWins = totalA !== totalB ? totalA > totalB : a.pointsAgainst < b.pointsAgainst;
-    if (aWins) {
+    // match tied (e.g. 3 matches at +5/+5/-10 nets to a 0 difference).
+    // Confirmed with the organizer: this became a real possibility once
+    // the format moved from 2 courts (matches ran serially, so "first to
+    // reach the point target" inherently prevented ties) to 3 courts
+    // (matches run in parallel and are only summed up afterward, which
+    // CAN produce a genuine tie). Break a tied total by each group's
+    // OVERALL points-against across the whole tournament so far (fewer
+    // conceded wins this circulation too) -- the same metric already
+    // used as the final tie-break for the whole standings table.
+    const totalTied = totalA === totalB;
+    const pointsAgainstTied = a.pointsAgainst === b.pointsAgainst;
+    if (totalTied && pointsAgainstTied) {
+      // Confirmed with the organizer: if the tiebreak ALSO ties (fully
+      // undecidable -- genuinely possible, not just theoretical), BOTH
+      // groups get credited with this circulation's win, and neither
+      // gets a loss. This deliberately breaks the "wins across a group
+      // = circulations decided" identity for the tied circulation (it
+      // produces 2 wins instead of the usual 1 win + 1 loss) -- that's
+      // accepted, not a bug.
       a.wins++;
-      b.losses++;
-    } else {
       b.wins++;
-      a.losses++;
+    } else {
+      const aWins = !totalTied ? totalA > totalB : a.pointsAgainst < b.pointsAgainst;
+      if (aWins) {
+        a.wins++;
+        b.losses++;
+      } else {
+        b.wins++;
+        a.losses++;
+      }
     }
   }
 
