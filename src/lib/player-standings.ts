@@ -38,6 +38,13 @@ type UnrankedRow = Omit<GroupStandingRow, 'rank'>;
  * player) -- these update live regardless of whether their circulation's
  * win/loss has been decided yet.
  *
+ * A circulation's combined score can tie exactly even when no individual
+ * match tied (e.g. +5/+5/-10 nets to 0). When that happens, the tie is
+ * broken by each group's OVERALL points-against across the whole
+ * tournament so far (fewer conceded wins the circulation too) -- the
+ * same metric already used as the final tie-break for the whole
+ * standings table below.
+ *
  * Ranking: wins desc, then points-for desc, then points-against asc
  * (fewer conceded ranks higher). Ranks use SQL RANK() semantics: tied
  * rows share a rank, the next distinct row's rank skips ahead by the
@@ -92,16 +99,29 @@ export function computeGroupStandings(matches: MatchResult[]): GroupStandingRow[
       totalA += m.scoreA;
       totalB += m.scoreB;
     }
-    // ponytail: an exact tie isn't possible under this tournament's rules
-    // (confirmed with the organizer), so the `else` branch below is an
-    // arbitrary-but-non-crashing default rather than something expected
-    // to actually happen.
-    if (totalA > totalB) {
-      group(pairAGroupId).wins++;
-      group(pairBGroupId).losses++;
+    const a = group(pairAGroupId);
+    const b = group(pairBGroupId);
+    // A circulation's combined score can tie even though no individual
+    // match tied (e.g. 3 matches at +5/+5/-10 nets to a 0 difference) --
+    // confirmed with the organizer: break it by each group's OVERALL
+    // points-against across the whole tournament so far (fewer conceded
+    // wins this circulation too), the same metric already used as the
+    // final tie-break for the whole standings table. Standings recompute
+    // fresh from current data every time, so this circulation's outcome
+    // can in principle shift as more matches complete elsewhere -- that's
+    // consistent with every other running total in this table being
+    // provisional until the tournament finishes, not a new problem this
+    // introduces.
+    // ponytail: if pointsAgainst ALSO ties (stacking a second unlikely
+    // tie on the first), falls through to awarding B -- arbitrary but
+    // non-crashing, not expected to actually happen.
+    const aWins = totalA !== totalB ? totalA > totalB : a.pointsAgainst < b.pointsAgainst;
+    if (aWins) {
+      a.wins++;
+      b.losses++;
     } else {
-      group(pairBGroupId).wins++;
-      group(pairAGroupId).losses++;
+      b.wins++;
+      a.losses++;
     }
   }
 

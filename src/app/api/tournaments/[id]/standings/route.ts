@@ -20,6 +20,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const results: MatchResult[] = matches.map((m) => ({
       pairAGroupId: m.pairA.groupId,
       pairBGroupId: m.pairB.groupId,
+      roundNumber: m.roundNumber,
       status: m.status,
       scoreA: m.scoreA,
       scoreB: m.scoreB,

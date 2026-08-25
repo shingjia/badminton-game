@@ -88,4 +88,31 @@ describe('computeGroupStandings', () => {
     expect(rows[1].rank).toBe(2);
     expect(rows[2].rank).toBe(3);
   });
+
+  it('breaks an exact circulation total-score tie by overall points-against (fewer conceded wins)', () => {
+    const matches: MatchResult[] = [
+      // Round 1: A vs B, 3 matches -- combined totals tie exactly (23-23)
+      // even though no individual match tied.
+      match({ round: 1, a: 'A', b: 'B', scoreA: 11, scoreB: 6 }),
+      match({ round: 1, a: 'A', b: 'B', scoreA: 11, scoreB: 6 }),
+      match({ round: 1, a: 'A', b: 'B', scoreA: 1, scoreB: 11 }),
+      // Round 2: A wins its own circulation against C (15 > 11), so this
+      // adds no additional loss for A -- but C's 11 points still count
+      // toward A's overall points-against, which is what tips the round 1
+      // tiebreak below. (A losing this match outright would confound the
+      // test: that would hand A a second, unrelated loss on top of the
+      // tiebreak loss, rather than isolating the tiebreak's effect.)
+      match({ round: 2, a: 'A', b: 'C', scoreA: 15, scoreB: 11 }),
+    ];
+    const rows = computeGroupStandings(matches);
+    const a = rows.find((r) => r.groupId === 'A')!;
+    const b = rows.find((r) => r.groupId === 'B')!;
+    // Total tied (23-23) so round 1 falls to the points-against tiebreak;
+    // B (23 conceded overall) beats A (34 conceded overall: 23 from round
+    // 1 + 11 from round 2). A still wins round 2 outright, so its only
+    // loss is the round 1 tiebreak.
+    expect(b.wins).toBe(1);
+    expect(a.wins).toBe(1);
+    expect(a.losses).toBe(1);
+  });
 });
