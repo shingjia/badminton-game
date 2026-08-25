@@ -97,7 +97,13 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
   const editable = tournament.status === 'in_progress' || tournament.status === 'finished';
 
   useEffect(() => {
-    api<MatchFull[]>(`/api/tournaments/${tournament.id}/matches`).then(setMatches);
+    let cancelled = false;
+    api<MatchFull[]>(`/api/tournaments/${tournament.id}/matches`).then((data) => {
+      if (!cancelled) setMatches(data);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [tournament.id, revision]);
 
   // Group by group (friendly) or by pairing (club — a match spans two

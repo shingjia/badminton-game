@@ -38,8 +38,16 @@ export function SectionGroups({
   const canEditNames = tournament.status !== 'finished';
 
   useEffect(() => {
-    api<GroupWithData[]>(`/api/tournaments/${tournament.id}/groups`).then(setGroups);
-    api<Player[]>(`/api/tournaments/${tournament.id}/players`).then(setPlayers);
+    let cancelled = false;
+    api<GroupWithData[]>(`/api/tournaments/${tournament.id}/groups`).then((data) => {
+      if (!cancelled) setGroups(data);
+    });
+    api<Player[]>(`/api/tournaments/${tournament.id}/players`).then((data) => {
+      if (!cancelled) setPlayers(data);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [tournament.id, revision]);
 
   // 分組完球員預設沒有棒次；只要組內有人棒次是空的，就依目前順序

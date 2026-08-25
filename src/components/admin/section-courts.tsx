@@ -12,7 +12,13 @@ export function SectionCourts({ tournament }: { tournament: Tournament }) {
   const [newCourt, setNewCourt] = useState('');
 
   useEffect(() => {
-    api<Court[]>(`/api/tournaments/${tournament.id}/courts`).then(setCourts);
+    let cancelled = false;
+    api<Court[]>(`/api/tournaments/${tournament.id}/courts`).then((data) => {
+      if (!cancelled) setCourts(data);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [tournament.id]);
 
   async function addCourt() {

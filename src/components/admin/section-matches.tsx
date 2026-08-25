@@ -101,7 +101,13 @@ export function SectionMatches({ tournament, revision }: { tournament: Tournamen
   const [pendingWave, setPendingWave] = useState<number | null>(null);
 
   useEffect(() => {
-    api<MatchFull[]>(`/api/tournaments/${tournament.id}/matches`).then(setMatches);
+    let cancelled = false;
+    api<MatchFull[]>(`/api/tournaments/${tournament.id}/matches`).then((data) => {
+      if (!cancelled) setMatches(data);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [tournament.id, revision]);
 
   useEffect(() => {

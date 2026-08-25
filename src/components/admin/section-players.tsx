@@ -25,7 +25,13 @@ export function SectionPlayers({
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    api<Player[]>(`/api/tournaments/${tournament.id}/players`).then(setPlayers);
+    let cancelled = false;
+    api<Player[]>(`/api/tournaments/${tournament.id}/players`).then((data) => {
+      if (!cancelled) setPlayers(data);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [tournament.id, revision]);
 
   function toggleSelected(id: string) {
