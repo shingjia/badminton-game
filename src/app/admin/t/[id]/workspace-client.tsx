@@ -28,16 +28,16 @@ const TABS = [
       'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 dark:data-[state=active]:bg-blue-900/50 dark:data-[state=active]:text-blue-200',
   },
   {
-    id: 'groups',
-    label: '分組',
-    active:
-      'data-[state=active]:bg-purple-100 data-[state=active]:text-purple-900 dark:data-[state=active]:bg-purple-900/50 dark:data-[state=active]:text-purple-200',
-  },
-  {
     id: 'courts',
     label: '場地',
     active:
       'data-[state=active]:bg-orange-100 data-[state=active]:text-orange-900 dark:data-[state=active]:bg-orange-900/50 dark:data-[state=active]:text-orange-200',
+  },
+  {
+    id: 'groups',
+    label: '分組',
+    active:
+      'data-[state=active]:bg-purple-100 data-[state=active]:text-purple-900 dark:data-[state=active]:bg-purple-900/50 dark:data-[state=active]:text-purple-200',
   },
   {
     id: 'matches',
