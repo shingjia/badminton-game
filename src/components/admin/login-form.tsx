@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +9,6 @@ import { api, ApiError } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 
 export function LoginForm({ redirect }: { redirect: string }) {
-  const router = useRouter();
   const { toast } = useToast();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -24,8 +22,16 @@ export function LoginForm({ redirect }: { redirect: string }) {
         method: 'POST',
         body: { username: username.trim(), password },
       });
-      router.push(redirect);
-      router.refresh();
+      // ponytail: hard navigation, not router.push — router.push replays
+      // Next's client-side Router Cache, which can hold a stale pre-login
+      // middleware redirect if this path was ever prefetched while logged
+      // out (e.g. the public "主辦登入" link prefetches /admin by default).
+      // A full navigation always re-checks the cookie fresh, which is what
+      // was causing login to sometimes need a second click. `redirect` is
+      // attacker-controllable (query param) so validate it's an internal
+      // path before handing it to the browser, not an open redirect.
+      const safeRedirect = redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/admin';
+      window.location.href = safeRedirect;
     } catch (err) {
       const msg = err instanceof ApiError && err.status === 401 ? '帳號或密碼錯誤' : '登入失敗';
       toast({ title: msg, variant: 'destructive' });
