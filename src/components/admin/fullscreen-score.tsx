@@ -120,7 +120,14 @@ export function FullscreenScoreButton({
     }
   }
 
-  const order: Side[] = swapped ? ['B', 'A'] : ['A', 'B'];
+  // ponytail: keyed by DOM slot, not by logical side, so a swap only
+  // updates props on two stationary elements instead of making React
+  // physically move the DOM nodes. Reordering (key={side}) caused a real
+  // rendering glitch on iOS Safari: a fixed-position overlay with
+  // DOM-reordered flex children left stale, unrepainted color at the
+  // outer panel edges right after a swap (reported on iPhone).
+  const firstSide: Side = swapped ? 'B' : 'A';
+  const secondSide: Side = swapped ? 'A' : 'B';
   const labelOf: Record<Side, string> = { A: labelA, B: labelB };
   const scoreOf: Record<Side, number> = { A: scoreA, B: scoreB };
 
@@ -139,16 +146,22 @@ export function FullscreenScoreButton({
         ref={overlayRef}
         className={`text-white ${active ? 'fixed inset-0 z-50 flex flex-col sm:flex-row' : 'hidden'}`}
       >
-        {order.map((side) => (
-          <ScoreSide
-            key={side}
-            side={side}
-            label={labelOf[side]}
-            score={scoreOf[side]}
-            bg={SIDE_STYLE[side]}
-            onBump={onBump}
-          />
-        ))}
+        <ScoreSide
+          key="slot-1"
+          side={firstSide}
+          label={labelOf[firstSide]}
+          score={scoreOf[firstSide]}
+          bg={SIDE_STYLE[firstSide]}
+          onBump={onBump}
+        />
+        <ScoreSide
+          key="slot-2"
+          side={secondSide}
+          label={labelOf[secondSide]}
+          score={scoreOf[secondSide]}
+          bg={SIDE_STYLE[secondSide]}
+          onBump={onBump}
+        />
         <button
           type="button"
           onClick={() => setSwapped((s) => !s)}
