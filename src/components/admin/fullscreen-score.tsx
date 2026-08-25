@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useEffect, useRef, useState, type RefObject } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
 type Side = 'A' | 'B';
 
@@ -150,6 +150,7 @@ export function FullscreenScoreButton({
   const overlayRef = useRef<HTMLDivElement>(null);
   const slot1Ref = useRef<HTMLDivElement>(null);
   const slot2Ref = useRef<HTMLDivElement>(null);
+  const lastSwapAtRef = useRef(0);
   const supportsFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled;
 
   useEffect(() => {
@@ -179,6 +180,31 @@ export function FullscreenScoreButton({
       setActive(false);
     }
   }
+
+  function toggleSwap() {
+    const now = Date.now();
+    // ponytail: debounce rapid re-taps. A video recording of the reported
+    // bug showed the glitch specifically during 3 swaps inside under 2
+    // seconds -- real usage (physically swapping court sides mid-match)
+    // never needs rapid repeated taps, so this directly prevents the
+    // observed trigger condition regardless of whether the underlying
+    // WebKit paint-coalescing defect itself is ever fully eliminated.
+    if (now - lastSwapAtRef.current < 500) return;
+    lastSwapAtRef.current = now;
+    setSwapped((s) => !s);
+  }
+
+  useLayoutEffect(() => {
+    // ponytail: force a synchronous layout read right after the swap
+    // commits. A frame-by-frame video of the reported bug showed
+    // layout-affecting changes (the team-name text, which reflows)
+    // always repainted correctly on WebKit, while the paint-only
+    // background-color change sometimes didn't -- this nudges the
+    // browser to flush/paint the pending style change by piggybacking
+    // on a layout read, rather than letting it risk being coalesced away.
+    void slot1Ref.current?.offsetHeight;
+    void slot2Ref.current?.offsetHeight;
+  }, [swapped]);
 
   // ponytail: keyed by DOM slot, not by logical side, so a swap only
   // updates props on two stationary elements instead of making React
@@ -243,7 +269,7 @@ export function FullscreenScoreButton({
         <SwapDebugPanel slot1Ref={slot1Ref} slot2Ref={slot2Ref} swapped={swapped} />
         <button
           type="button"
-          onClick={() => setSwapped((s) => !s)}
+          onClick={toggleSwap}
           title="交換顯示"
           aria-label="交換顯示位置"
           className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/30 text-2xl hover:bg-white/20"
