@@ -55,6 +55,7 @@ export function StandingsTab({
   const [groupRows, setGroupRows] = useState<GroupRow[]>([]);
   const [groups, setGroups] = useState<GroupWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showRules, setShowRules] = useState(false);
 
   useSafeEffect((isCancelled) => {
     setLoading(true);
@@ -83,11 +84,20 @@ export function StandingsTab({
     if (groupRows.length === 0) return <p className="py-6 text-muted-foreground">尚無排名資料</p>;
     return (
       <div className="py-4">
-        <p className="mb-3 text-sm text-muted-foreground">
-          每個循環中，兩組對戰的所有個人賽分數加總比較，總分較高的一組拿下該循環
-          1 勝、另一組 1 負（不是贏比較多場個人賽的那組）。循環總分打平時，比較兩隊目前為止的總失分，較少的一方拿下這場勝；總失分也相同的話，兩隊同樣都算下這場的
-          1 勝。所有循環結束後，依勝場數排名；勝場相同時比總得分（多者在前），再相同比總失分（少者在前）。
-        </p>
+        <button
+          type="button"
+          onClick={() => setShowRules((s) => !s)}
+          className="mb-3 text-sm text-primary underline-offset-2 hover:underline"
+        >
+          {showRules ? '隱藏規則' : '查看規則'}
+        </button>
+        {showRules && (
+          <p className="mb-3 text-sm text-muted-foreground">
+            每個循環中，兩組對戰的所有個人賽分數加總比較，總分較高的一組拿下該循環
+            1 勝、另一組 1 負（不是贏比較多場個人賽的那組）。循環總分打平時，比較兩隊目前為止的總失分，較少的一方拿下這場勝；總失分也相同的話，兩隊同樣都算下這場的
+            1 勝。所有循環結束後，依勝場數排名；勝場相同時比總得分（多者在前），再相同比總失分（少者在前）。
+          </p>
+        )}
         <Card className="p-4">
           <Table>
             <TableHeader>
