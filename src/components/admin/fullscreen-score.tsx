@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useRef, useState, type RefObject } from 'react';
 
 type Side = 'A' | 'B';
 
@@ -23,21 +23,19 @@ const SIDE_STYLE: Record<Side, string> = {
 // via a Mac (Develop menu -> connected iPhone -> Layers tab / "show
 // compositing borders" / inspect repaint rects), or at minimum a
 // screen recording of the glitch.
-function ScoreSide({
-  side,
-  label,
-  score,
-  bg,
-  onBump,
-}: {
-  side: Side;
-  label: string;
-  score: number;
-  bg: string;
-  onBump: (side: Side, delta: number) => void;
-}) {
+const ScoreSide = forwardRef<
+  HTMLDivElement,
+  {
+    side: Side;
+    label: string;
+    score: number;
+    bg: string;
+    onBump: (side: Side, delta: number) => void;
+  }
+>(function ScoreSide({ side, label, score, bg, onBump }, ref) {
   return (
     <div
+      ref={ref}
       role="button"
       tabIndex={0}
       onClick={() => onBump(side, 1)}
@@ -77,6 +75,52 @@ function ScoreSide({
       </div>
     </div>
   );
+});
+ScoreSide.displayName = 'ScoreSide';
+
+// ponytail: TEMPORARY diagnostic overlay for an unresolved real-device
+// bug (wrong color at the outer screen edges after the first swap on
+// iOS -- see commits ae7722b, 330ad46, e54965e, none of which fixed it
+// on retest). The reporting user has no Mac, so no Safari Web Inspector
+// access -- this surfaces the same computed-style/layout data directly
+// on screen so a plain screenshot captures it. REMOVE once the bug is
+// actually diagnosed and fixed; this should never ship long-term.
+function SwapDebugPanel({
+  slot1Ref,
+  slot2Ref,
+  swapped,
+}: {
+  slot1Ref: RefObject<HTMLDivElement>;
+  slot2Ref: RefObject<HTMLDivElement>;
+  swapped: boolean;
+}) {
+  const [info, setInfo] = useState('');
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      const describe = (el: HTMLDivElement | null) => {
+        if (!el) return '?';
+        const cs = getComputedStyle(el);
+        const r = el.getBoundingClientRect();
+        return `bg=${cs.backgroundColor} x=${r.x.toFixed(1)} w=${r.width.toFixed(1)}`;
+      };
+      const lines = [
+        `swapped=${swapped}`,
+        `slot1: ${describe(slot1Ref.current)}`,
+        `slot2: ${describe(slot2Ref.current)}`,
+        `viewport=${window.innerWidth}x${window.innerHeight} dpr=${window.devicePixelRatio}`,
+        `ua=${navigator.userAgent}`,
+      ];
+      setInfo(lines.join('\n'));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [swapped, slot1Ref, slot2Ref]);
+
+  return (
+    <pre className="absolute left-1 top-1 z-[60] max-w-[90vw] whitespace-pre-wrap break-all rounded bg-black/80 p-1 text-[9px] leading-tight text-lime-300">
+      {info}
+    </pre>
+  );
 }
 
 /**
@@ -104,6 +148,8 @@ export function FullscreenScoreButton({
   const [active, setActive] = useState(false);
   const [swapped, setSwapped] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const slot1Ref = useRef<HTMLDivElement>(null);
+  const slot2Ref = useRef<HTMLDivElement>(null);
   const supportsFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled;
 
   useEffect(() => {
@@ -162,6 +208,7 @@ export function FullscreenScoreButton({
       >
         <ScoreSide
           key="slot-1"
+          ref={slot1Ref}
           side={firstSide}
           label={labelOf[firstSide]}
           score={scoreOf[firstSide]}
@@ -170,12 +217,14 @@ export function FullscreenScoreButton({
         />
         <ScoreSide
           key="slot-2"
+          ref={slot2Ref}
           side={secondSide}
           label={labelOf[secondSide]}
           score={scoreOf[secondSide]}
           bg={SIDE_STYLE[secondSide]}
           onBump={onBump}
         />
+        <SwapDebugPanel slot1Ref={slot1Ref} slot2Ref={slot2Ref} swapped={swapped} />
         <button
           type="button"
           onClick={() => setSwapped((s) => !s)}
