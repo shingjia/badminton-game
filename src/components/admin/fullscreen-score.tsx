@@ -182,26 +182,31 @@ export function FullscreenScoreButton({
   }
 
   function toggleSwap() {
-    const now = Date.now();
+    const now = performance.now();
     // ponytail: debounce rapid re-taps. A video recording of the reported
     // bug showed the glitch specifically during 3 swaps inside under 2
     // seconds -- real usage (physically swapping court sides mid-match)
     // never needs rapid repeated taps, so this directly prevents the
     // observed trigger condition regardless of whether the underlying
     // WebKit paint-coalescing defect itself is ever fully eliminated.
+    // performance.now() (monotonic) instead of Date.now() (wall-clock,
+    // can jump backward on NTP resync and would then block swaps until
+    // wall-clock time caught back up).
     if (now - lastSwapAtRef.current < 500) return;
     lastSwapAtRef.current = now;
     setSwapped((s) => !s);
   }
 
   useLayoutEffect(() => {
-    // ponytail: force a synchronous layout read right after the swap
-    // commits. A frame-by-frame video of the reported bug showed
-    // layout-affecting changes (the team-name text, which reflows)
-    // always repainted correctly on WebKit, while the paint-only
-    // background-color change sometimes didn't -- this nudges the
-    // browser to flush/paint the pending style change by piggybacking
-    // on a layout read, rather than letting it risk being coalesced away.
+    // ponytail: forces a synchronous layout recalculation right after
+    // the swap commits (offsetHeight is a documented layout-forcing
+    // read). This is a HYPOTHESIS, not a verified fix -- offsetHeight
+    // is documented to force layout/reflow, not paint/composite, which
+    // are separate rendering pipeline stages. There's no documented
+    // guarantee this flushes the paint-only background-color change
+    // that the video evidence showed WebKit sometimes drops. Cheap and
+    // harmless either way; still needs real-device retest to know if
+    // it actually helps.
     void slot1Ref.current?.offsetHeight;
     void slot2Ref.current?.offsetHeight;
   }, [swapped]);
