@@ -10,14 +10,19 @@ const SIDE_STYLE: Record<Side, string> = {
 };
 
 // ponytail: transform-gpu forces this panel onto its own GPU-composited
-// layer from mount, not lazily on its first background-color change.
-// Without it, iOS Safari could glitch the FIRST swap specifically (stale
-// color left at the outer screen edge, confirmed via real-device retest
-// after the key-stability fix in ae7722b didn't resolve it) -- a known
-// WebKit "cold layer" repaint bug: the first paint after a lazily-created
-// compositing layer can be incomplete, while later paints on an
-// already-promoted layer are fine. Reported: swap once -> wrong edge
-// color, doesn't self-correct on scroll; swap again -> correct.
+// layer. This is a HYPOTHESIS, not a confirmed root cause -- no cited
+// WebKit bug backs it, and background-color changes don't normally
+// trigger layer promotion in WebKit's compositing model, so this may
+// not actually be why the glitch happens. It's a cheap, low-risk,
+// commonly-reached-for workaround for the reported symptom pattern
+// (first swap only leaves stale color at the outer screen edges,
+// doesn't self-correct on scroll, fine on the second swap -- confirmed
+// via real-device retest after the key-stability fix in ae7722b did
+// NOT resolve it). If this ALSO doesn't fix it on retest, don't guess
+// a third CSS tweak -- get real evidence first: Safari Web Inspector
+// via a Mac (Develop menu -> connected iPhone -> Layers tab / "show
+// compositing borders" / inspect repaint rects), or at minimum a
+// screen recording of the glitch.
 function ScoreSide({
   side,
   label,
