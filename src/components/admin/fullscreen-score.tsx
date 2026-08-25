@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 type Side = 'A' | 'B';
 
@@ -77,51 +77,6 @@ const ScoreSide = forwardRef<
   );
 });
 ScoreSide.displayName = 'ScoreSide';
-
-// ponytail: TEMPORARY diagnostic overlay for an unresolved real-device
-// bug (wrong color at the outer screen edges after the first swap on
-// iOS -- see commits ae7722b, 330ad46, e54965e, none of which fixed it
-// on retest). The reporting user has no Mac, so no Safari Web Inspector
-// access -- this surfaces the same computed-style/layout data directly
-// on screen so a plain screenshot captures it. REMOVE once the bug is
-// actually diagnosed and fixed; this should never ship long-term.
-function SwapDebugPanel({
-  slot1Ref,
-  slot2Ref,
-  swapped,
-}: {
-  slot1Ref: RefObject<HTMLDivElement>;
-  slot2Ref: RefObject<HTMLDivElement>;
-  swapped: boolean;
-}) {
-  const [info, setInfo] = useState('');
-
-  useEffect(() => {
-    const id = requestAnimationFrame(() => {
-      const describe = (el: HTMLDivElement | null) => {
-        if (!el) return '?';
-        const cs = getComputedStyle(el);
-        const r = el.getBoundingClientRect();
-        return `bg=${cs.backgroundColor} x=${r.x.toFixed(1)} w=${r.width.toFixed(1)}`;
-      };
-      const lines = [
-        `swapped=${swapped}`,
-        `slot1: ${describe(slot1Ref.current)}`,
-        `slot2: ${describe(slot2Ref.current)}`,
-        `viewport=${window.innerWidth}x${window.innerHeight} dpr=${window.devicePixelRatio}`,
-        `ua=${navigator.userAgent}`,
-      ];
-      setInfo(lines.join('\n'));
-    });
-    return () => cancelAnimationFrame(id);
-  }, [swapped, slot1Ref, slot2Ref]);
-
-  return (
-    <pre className="pointer-events-none absolute left-1/2 top-1 z-[60] max-w-[90vw] -translate-x-1/2 whitespace-pre-wrap break-all rounded bg-black/80 p-1 text-[9px] leading-tight text-lime-300">
-      {info}
-    </pre>
-  );
-}
 
 /**
  * 管理者計分頁的全螢幕計分——跟觀眾頁唯讀的 FullscreenMatchButton
@@ -271,7 +226,6 @@ export function FullscreenScoreButton({
           bg={SIDE_STYLE[secondSide]}
           onBump={onBump}
         />
-        <SwapDebugPanel slot1Ref={slot1Ref} slot2Ref={slot2Ref} swapped={swapped} />
         <button
           type="button"
           onClick={toggleSwap}
