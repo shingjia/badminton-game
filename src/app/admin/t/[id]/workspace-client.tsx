@@ -76,7 +76,12 @@ export function WorkspaceClient({
       router.refresh();
     },
     'match.generated': bump,
-    'match.scored': bump,
+    // 'match.scored' 故意不接 bump()：接了會讓 SectionScoring 對每一次
+    // 計分都額外觸發一次整包 GET，這個 GET 跟 ScoreRow 自己送出的 PATCH
+    // 用同一個 tournament.id 競爭，回應如果剛好在連續兩次 PATCH 都送出
+    // 後才 resolve，會用中間值蓋掉已經正確的樂觀值，造成分數先升後降
+    // 再升。SectionScoring 現在直接訂閱 match.scored、用廣播本身帶的
+    // 單場資料 merge，不需要（也不該）再靠這裡的整包重新 GET。
     'tournament.updated': (payload: { tournament: Tournament }) => {
       setTournament(payload.tournament);
       bump();

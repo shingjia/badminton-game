@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { api, ApiError } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import { useSafeEffect } from '@/lib/use-safe-effect';
+import { useTournamentSocket } from '@/lib/use-socket';
 import { colorForIndex } from '@/lib/badge-colors';
 import { FullscreenScoreButton } from '@/components/admin/fullscreen-score';
 import type { Court, Group, Match, Pair, Player, Tournament } from '@prisma/client';
@@ -103,6 +104,19 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
       if (!isCancelled()) setMatches(data);
     });
   }, [tournament.id, revision]);
+
+  // 分數變動不靠 revision 整包重新 GET 來同步（那個路徑會跟 ScoreRow
+  // 自己送出的 PATCH 競爭，見 ScoreRow 內 pending 那段註解）。這裡直接
+  // 訂閱 socket 廣播本身帶的最新 match 資料，只 merge 分數/狀態欄位，
+  // 保留其餘關聯資料（pairA/pairB/court/group 這個事件不會變動）。
+  useTournamentSocket(tournament.id, {
+    'match.scored': (payload: { match: Match }) => {
+      const { id, scoreA, scoreB, status, finishedAt } = payload.match;
+      setMatches((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, scoreA, scoreB, status, finishedAt } : m)),
+      );
+    },
+  });
 
   // Group by group (friendly) or by pairing (club — a match spans two
   // different groups, so grouping by Match.group alone would only show
@@ -256,12 +270,11 @@ function ScoreRow({
   const [a, setA] = useState(match.scoreA);
   const [b, setB] = useState(match.scoreB);
   // 這一列自己還有幾個 PATCH 在飛。>0 時代表本地樂觀值比 props 新，
-  // 忽略這時候從 revision 觸發的重新整理，不然會被回音 fetch 到的
-  // 舊值蓋掉，導致分數閃一下又跳回來。
-  // ponytail: 計數器擋掉常見的連點 race，但極端情況（前一次 PATCH 的
-  // 回音剛好在兩次請求都送出後才 resolve）理論上還是可能蓋到舊值。
-  // 真的還會發生的話，改成 SectionScoring 直接吃 socket payload
-  // 更新單一 match，不要整包重新 GET，從根拔掉這個 race。
+  // 忽略這時候的 props 更新，避免被別的來源（例如另一台裝置剛好同時
+  // 對同一場計分）蓋掉還在送出中的樂觀值。分數本身的同步已經改成
+  // SectionScoring 直接吃 match.scored 廣播的單場資料 merge，不再靠
+  // revision 觸發整包重新 GET——那個路徑曾經因為 GET 回應剛好在連續
+  // 兩次 PATCH 都送出後才 resolve，蓋回中間值，導致分數先升後降再升。
   const pending = useRef(0);
 
   useEffect(() => {
