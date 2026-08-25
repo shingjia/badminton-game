@@ -99,6 +99,15 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
   const [mode, setMode] = useState<GroupingMode>('group');
   const editable = tournament.status === 'in_progress' || tournament.status === 'finished';
 
+  // ponytail: 這個整包 GET 理論上還是可能在跟某一場正在連續快速計分的
+  // PATCH 序列重疊時，回傳到那一場的分數暫時性的中間值（見 ScoreRow 的
+  // pending 計數器註解）——比修這個之前的版本窄很多（現在要跟其他無關
+  // 的 revision 事件剛好同時發生），但沒有完全消除。故意不讓這裡的
+  // merge 永遠優先保留本地分數：那樣做等於賭 match.scored 廣播永遠不
+  // 會漏（socket 斷線窗口內剛好有人計分就可能漏），一旦漏接，畫面會卡
+  // 在舊分數、沒有任何後續整包 GET 能自我修正——用一個更罕見的閃爍換一
+  // 個更嚴重的靜默錯誤不划算。真的常發生再考慮用 match 的 updatedAt 判
+  // 斷新舊，而不是整批二選一。
   useSafeEffect((isCancelled) => {
     api<MatchFull[]>(`/api/tournaments/${tournament.id}/matches`).then((data) => {
       if (!isCancelled()) setMatches(data);
@@ -270,11 +279,13 @@ function ScoreRow({
   const [a, setA] = useState(match.scoreA);
   const [b, setB] = useState(match.scoreB);
   // 這一列自己還有幾個 PATCH 在飛。>0 時代表本地樂觀值比 props 新，
-  // 忽略這時候的 props 更新，避免被別的來源（例如另一台裝置剛好同時
-  // 對同一場計分）蓋掉還在送出中的樂觀值。分數本身的同步已經改成
-  // SectionScoring 直接吃 match.scored 廣播的單場資料 merge，不再靠
-  // revision 觸發整包重新 GET——那個路徑曾經因為 GET 回應剛好在連續
-  // 兩次 PATCH 都送出後才 resolve，蓋回中間值，導致分數先升後降再升。
+  // 忽略這時候的 props 更新，避免被別的來源蓋掉還在送出中的樂觀值。
+  // 分數變動本身已經改成 SectionScoring 直接吃 match.scored 廣播的單場
+  // 資料 merge，不再因為「自己這場計分」而觸發整包重新 GET；但別的
+  // revision 事件（例如別人同時新增球員、鎖定分組）仍然會讓 SectionScoring
+  // 整包重新 GET，理論上如果那次 GET 剛好跟這一列的連續快速點擊重疊，
+  // 一樣可能蓋回中間值——這裡的 pending 計數器就是擋這個殘留 race 的
+  // 最後一道防線。
   const pending = useRef(0);
 
   useEffect(() => {
