@@ -22,6 +22,12 @@ function ScoreSide({
       role="button"
       tabIndex={0}
       onClick={() => onBump(side, 1)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onBump(side, 1);
+        }
+      }}
       className={`flex flex-1 cursor-pointer flex-col items-center justify-center gap-4 text-center ${bg}`}
     >
       <div className="text-2xl font-semibold sm:text-3xl">{label}</div>
