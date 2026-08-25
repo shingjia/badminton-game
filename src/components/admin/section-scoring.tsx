@@ -8,6 +8,7 @@ import { api, ApiError } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import { useSafeEffect } from '@/lib/use-safe-effect';
 import { colorForIndex } from '@/lib/badge-colors';
+import { FullscreenScoreButton } from '@/components/admin/fullscreen-score';
 import type { Court, Group, Match, Pair, Player, Tournament } from '@prisma/client';
 
 type PairWithPlayers = Pair & { player1: Player; player2: Player; group: Group };
@@ -321,13 +322,22 @@ function ScoreRow({
           <span className="text-muted-foreground">#{match.matchOrder}</span>
         </span>
         {match.court && <CourtBadge name={match.court.name} order={match.court.displayOrder ?? 1} />}
-        {isCompleted ? (
-          <Badge className="ml-auto bg-emerald-600 hover:bg-emerald-600">已完成</Badge>
-        ) : isPlaying ? (
-          <Badge className="ml-auto bg-amber-500 hover:bg-amber-500">比賽進行中</Badge>
-        ) : (
-          <Badge variant="secondary" className="ml-auto">未開賽</Badge>
-        )}
+        <span className="ml-auto flex items-center gap-2">
+          {isCompleted ? (
+            <Badge className="bg-emerald-600 hover:bg-emerald-600">已完成</Badge>
+          ) : isPlaying ? (
+            <Badge className="bg-amber-500 hover:bg-amber-500">比賽進行中</Badge>
+          ) : (
+            <Badge variant="secondary">未開賽</Badge>
+          )}
+          <FullscreenScoreButton
+            labelA={pairLabel(match.pairA)}
+            labelB={pairLabel(match.pairB)}
+            scoreA={a}
+            scoreB={b}
+            onBump={bump}
+          />
+        </span>
       </div>
       <div className="grid grid-cols-2 gap-3">
         {(['A', 'B'] as const).map((side) => {
