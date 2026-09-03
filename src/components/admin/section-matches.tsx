@@ -29,23 +29,40 @@ function pairingOf(m: MatchFull) {
   return { key: `${first.id}-${second.id}`, label: `${first.name} 組 vs ${second.name} 組` };
 }
 
-function GroupBadge({ name, order }: { name: string; order: number }) {
-  return <Badge variant="outline" className={colorForIndex(order - 1)}>{name}</Badge>;
+function GroupBadge({ name, order, className = '' }: { name: string; order: number; className?: string }) {
+  return <Badge variant="outline" className={`${colorForIndex(order - 1)} ${className}`}>{name}</Badge>;
 }
 
 function CourtBadge({ name, order }: { name: string; order: number }) {
   return <Badge variant="outline" className={colorForIndex(order - 1)}>{name}</Badge>;
 }
 
+// 跟計分單元一致：區塊標頭的配對徽章加大、粗體、深色外框，方便快速定位。
+const blockBadgeClass = 'border-2 border-foreground/70 px-3 py-1 text-base font-bold';
+
 // 整個配對當作一個單位，用兩組中順序較前面那組的顏色代表整個配對
 // （例如 A vs D 用 A 的顏色），不是兩組各自上色。
-function PairingHeader({ matches, format }: { matches: MatchFull[]; format: 'friendly' | 'club' }) {
+function PairingHeader({
+  matches,
+  format,
+  className,
+}: {
+  matches: MatchFull[];
+  format: 'friendly' | 'club';
+  className?: string;
+}) {
   const m = matches[0];
   if (format === 'friendly') {
-    return <GroupBadge name={`${m.group.name} 組`} order={m.group.displayOrder ?? 1} />;
+    return <GroupBadge name={`${m.group.name} 組`} order={m.group.displayOrder ?? 1} className={className} />;
   }
   const [first, second] = [m.pairA.group, m.pairB.group].sort((a, b) => a.name.localeCompare(b.name));
-  return <GroupBadge name={`${first.name} 組 vs ${second.name} 組`} order={first.displayOrder ?? 1} />;
+  return (
+    <GroupBadge
+      name={`${first.name} 組 vs ${second.name} 組`}
+      order={first.displayOrder ?? 1}
+      className={className}
+    />
+  );
 }
 
 function groupByPairing(matches: MatchFull[], format: 'friendly' | 'club') {
@@ -66,7 +83,7 @@ function PairingBlocks({ matches, format }: { matches: MatchFull[]; format: 'fri
       {groupByPairing(matches, format).map(([key, block]) => (
         <Card key={key} className="p-3">
           <div className="mb-2">
-            <PairingHeader matches={block.matches} format={format} />
+            <PairingHeader matches={block.matches} format={format} className={blockBadgeClass} />
           </div>
           <div className="grid gap-2 md:grid-cols-2">
             {block.matches.map((m) => (
@@ -91,8 +108,9 @@ const ERR: Record<string, string> = {
   unequal_sides: '有一組依等級分出的兩隊人數不相等，請調整組數或球員人數',
   side_too_small: '有一組分出的兩隊人數少於 3 人，無法輪轉搭檔，請調整組數或球員人數',
   odd_group_count: '會內賽的組數必須是偶數（組跟組要兩兩對戰），請調整組數',
-  court_count_mismatch: '會內賽的場地數必須等於「組數÷2 + 1」，請調整場地或組數',
+  court_count_mismatch: '會內賽的場地數必須等於組數的一半（4 隊 2 場地、6 隊 3 場地），請調整場地或組數',
   invalid_wave: '循環編號不正確',
+  wave_has_scores: '此循環已有分數，須將該循環所有分數歸零後才能重新產生',
 };
 
 export function SectionMatches({ tournament, revision }: { tournament: Tournament; revision: number }) {
@@ -140,13 +158,20 @@ export function SectionMatches({ tournament, revision }: { tournament: Tournamen
       <div className="mb-3 flex items-center gap-3">
         <h2 className="text-xl font-semibold">賽程</h2>
         {tournament.format === 'friendly' && (
-          <Button
-            onClick={() => generate()}
-            size="sm"
-            disabled={tournament.status !== 'in_progress' || matches.length > 0}
-          >
-            {matches.length > 0 ? '已產生' : '產生對戰 + 分配場地'}
-          </Button>
+          <>
+            <Button
+              onClick={() => generate()}
+              size="sm"
+              disabled={tournament.status !== 'in_progress' || matches.length > 0}
+            >
+              {matches.length > 0 ? '已產生' : '產生對戰 + 分配場地'}
+            </Button>
+            {tournament.status === 'grouping' && matches.length === 0 && (
+              <span className="text-sm text-muted-foreground">
+                須先在「分組」分頁將每一組都按「鎖定配對」
+              </span>
+            )}
+          </>
         )}
         <span className="text-sm text-muted-foreground">{matches.length} 場</span>
       </div>
@@ -155,14 +180,16 @@ export function SectionMatches({ tournament, revision }: { tournament: Tournamen
         <div className="space-y-6 border-l-4 border-l-emerald-500 pl-4">
           {waveNumbers.map((wave) => {
             const waveMatches = matches.filter((m) => m.roundNumber === wave);
+            // 已有分數就鎖住重新產生，避免誤按洗掉比分；全部歸零後才解鎖
+            const hasScores = waveMatches.some((m) => m.scoreA > 0 || m.scoreB > 0);
             return (
               <div key={wave}>
-                <div className="mb-2 flex items-center gap-3">
-                  <div className="text-lg font-semibold">第 {wave} 循環</div>
+                <div className="mb-3 flex items-center gap-3 border-b-2 border-foreground/20 pb-1">
+                  <div className="text-2xl font-bold">第 {wave} 循環</div>
                   <Button
                     onClick={() => generate(wave)}
                     size="sm"
-                    disabled={tournament.status !== 'in_progress' || pendingWave === wave}
+                    disabled={tournament.status !== 'in_progress' || pendingWave === wave || hasScores}
                   >
                     {waveMatches.length > 0 ? '重新產生' : '產生對戰 + 分配場地'}
                   </Button>

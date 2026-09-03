@@ -24,7 +24,7 @@ function pairLabel(p: PairWithPlayers) {
  * the goal (a big, readable score display) still works everywhere, even
  * without the real Fullscreen API.
  */
-export function FullscreenMatchButton({ match }: { match: MatchLike }) {
+export function FullscreenMatchButton({ match, target }: { match: MatchLike; target?: number | null }) {
   const [active, setActive] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   // Static per-browser capability, safe to read directly in render — it
@@ -90,6 +90,14 @@ export function FullscreenMatchButton({ match }: { match: MatchLike }) {
           <div className="text-3xl font-semibold sm:text-5xl">{pairLabel(match.pairB)}</div>
           <div className="font-mono text-6xl font-bold tabular-nums sm:text-8xl">{match.scoreB}</div>
         </div>
+        {target != null && (
+          <div
+            style={{ top: 'max(1.5rem, env(safe-area-inset-top))' }}
+            className="absolute left-1/2 -translate-x-1/2 rounded-full border border-white/30 bg-black/50 px-5 py-2 text-xl font-semibold sm:text-2xl"
+          >
+            換人分 {target}
+          </div>
+        )}
         <button
           type="button"
           onClick={close}

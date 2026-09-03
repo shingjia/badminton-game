@@ -52,9 +52,11 @@ function PairingHeader({ matches, format }: { matches: MatchFull[]; format: 'fri
 function PairingCard({
   block,
   format,
+  pointsPerGame,
 }: {
   block: { label: string; matches: MatchFull[] };
   format: 'friendly' | 'club';
+  pointsPerGame: number;
 }) {
   const completed = block.matches.filter((m) => m.status === 'completed').length;
   const total = block.matches.length;
@@ -66,14 +68,14 @@ function PairingCard({
           {completed} / {total} 場已完成
         </div>
       </div>
-      <MatchList matches={block.matches} showGroup={false} format={format} />
+      <MatchList matches={block.matches} showGroup={false} format={format} pointsPerGame={pointsPerGame} />
     </Card>
   );
 }
 
 type CourtBlock = { key: string; courtName: string; courtOrder: number; matches: MatchFull[] };
 
-function CourtCard({ block, format }: { block: CourtBlock; format: 'friendly' | 'club' }) {
+function CourtCard({ block, format, pointsPerGame }: { block: CourtBlock; format: 'friendly' | 'club'; pointsPerGame: number }) {
   const completed = block.matches.filter((m) => m.status === 'completed').length;
   const total = block.matches.length;
   return (
@@ -90,7 +92,7 @@ function CourtCard({ block, format }: { block: CourtBlock; format: 'friendly' | 
           {completed} / {total} 場已完成
         </div>
       </div>
-      <MatchList matches={block.matches} showGroup format={format} />
+      <MatchList matches={block.matches} showGroup format={format} pointsPerGame={pointsPerGame} />
     </Card>
   );
 }
@@ -101,10 +103,12 @@ export function MatchesTab({
   tournamentId,
   revision,
   format,
+  pointsPerGame,
 }: {
   tournamentId: string;
   revision: number;
   format: 'friendly' | 'club';
+  pointsPerGame: number;
 }) {
   const [matches, setMatches] = useState<MatchFull[]>([]);
   const [loading, setLoading] = useState(true);
@@ -266,12 +270,12 @@ export function MatchesTab({
               <div key={wb.wave} className="space-y-4">
                 <div className="text-xl font-bold">{wb.label}</div>
                 {wb.entries.map(([key, block]) => (
-                  <PairingCard key={key} block={block} format={format} />
+                  <PairingCard key={key} block={block} format={format} pointsPerGame={pointsPerGame} />
                 ))}
               </div>
             ))
           : [...byGroup.entries()].map(([key, block]) => (
-              <PairingCard key={key} block={block} format={format} />
+              <PairingCard key={key} block={block} format={format} pointsPerGame={pointsPerGame} />
             )))}
 
       {view === 'court' &&
@@ -280,11 +284,11 @@ export function MatchesTab({
               <div key={wb.wave} className="space-y-4">
                 <div className="text-xl font-bold">{wb.label}</div>
                 {wb.blocks.map((c) => (
-                  <CourtCard key={c.key} block={c} format={format} />
+                  <CourtCard key={c.key} block={c} format={format} pointsPerGame={pointsPerGame} />
                 ))}
               </div>
             ))
-          : byCourt.map((c) => <CourtCard key={c.key} block={c} format={format} />))}
+          : byCourt.map((c) => <CourtCard key={c.key} block={c} format={format} pointsPerGame={pointsPerGame} />))}
 
       {view === 'graph' && (
         <div className="text-center text-xs text-muted-foreground">
@@ -310,16 +314,20 @@ function MatchList({
   matches,
   showGroup,
   format,
+  pointsPerGame,
 }: {
   matches: MatchFull[];
   showGroup: boolean;
   format: 'friendly' | 'club';
+  pointsPerGame: number;
 }) {
   return (
     <div className="grid gap-2 md:grid-cols-2">
       {matches.map((m) => {
         const done = m.status === 'completed';
         const playing = !done && (m.scoreA > 0 || m.scoreB > 0);
+        // 會內賽累計接力：第 N 段換人分數 = N × pointsPerGame
+        const target = format === 'club' ? m.matchOrder * pointsPerGame : null;
         return (
           <Card
             key={m.id}
@@ -348,22 +356,32 @@ function MatchList({
               )}
               {done ? (
                 <>
-                  <FullscreenMatchButton match={m} />
+                  <FullscreenMatchButton match={m} target={target} />
                   <span className="whitespace-nowrap rounded bg-emerald-600 px-2 py-0.5 font-mono text-sm font-bold text-white">
                     {m.scoreA} - {m.scoreB}
                   </span>
                 </>
               ) : playing ? (
                 <>
-                  <FullscreenMatchButton match={m} />
-                  <span className="whitespace-nowrap rounded bg-amber-500 px-2 py-0.5 font-mono text-sm font-bold text-white">
-                    {m.scoreA} - {m.scoreB}
-                  </span>
+                  <FullscreenMatchButton match={m} target={target} />
+                  <div className="flex flex-col items-end gap-0.5">
+                    <span className="whitespace-nowrap rounded bg-amber-500 px-2 py-0.5 font-mono text-sm font-bold text-white">
+                      {m.scoreA} - {m.scoreB}
+                    </span>
+                    {target !== null && (
+                      <span className="text-xs text-muted-foreground">換人分 {target}</span>
+                    )}
+                  </div>
                 </>
               ) : (
-                <Badge variant="secondary" className="text-xs">
-                  未開賽
-                </Badge>
+                <div className="flex flex-col items-end gap-0.5">
+                  <Badge variant="secondary" className="text-xs">
+                    未開賽
+                  </Badge>
+                  {target !== null && (
+                    <span className="text-xs text-muted-foreground">換人分 {target}</span>
+                  )}
+                </div>
               )}
             </div>
           </Card>

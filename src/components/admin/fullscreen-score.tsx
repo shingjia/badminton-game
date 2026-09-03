@@ -93,12 +93,14 @@ export function FullscreenScoreButton({
   scoreA,
   scoreB,
   onBump,
+  target,
 }: {
   labelA: string;
   labelB: string;
   scoreA: number;
   scoreB: number;
   onBump: (side: Side, delta: number) => void;
+  target?: number | null;
 }) {
   const [active, setActive] = useState(false);
   const [swapped, setSwapped] = useState(false);
@@ -226,6 +228,14 @@ export function FullscreenScoreButton({
           bg={SIDE_STYLE[secondSide]}
           onBump={onBump}
         />
+        {target != null && (
+          <div
+            style={{ top: 'max(1.5rem, env(safe-area-inset-top))' }}
+            className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full border border-white/30 bg-black/50 px-5 py-2 text-xl font-semibold sm:text-2xl"
+          >
+            換人分 {target}
+          </div>
+        )}
         <button
           type="button"
           onClick={toggleSwap}

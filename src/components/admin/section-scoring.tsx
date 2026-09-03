@@ -31,23 +31,41 @@ function pairingOf(m: MatchFull) {
   return { key: `${first.id}-${second.id}`, label: `${first.name} 組 vs ${second.name} 組` };
 }
 
-function GroupBadge({ name, order }: { name: string; order: number }) {
-  return <Badge variant="outline" className={colorForIndex(order - 1)}>{name}</Badge>;
+function GroupBadge({ name, order, className = '' }: { name: string; order: number; className?: string }) {
+  return <Badge variant="outline" className={`${colorForIndex(order - 1)} ${className}`}>{name}</Badge>;
 }
 
-function CourtBadge({ name, order }: { name: string; order: number }) {
-  return <Badge variant="outline" className={colorForIndex(order - 1)}>{name}</Badge>;
+function CourtBadge({ name, order, className = '' }: { name: string; order: number; className?: string }) {
+  return <Badge variant="outline" className={`${colorForIndex(order - 1)} ${className}`}>{name}</Badge>;
 }
+
+// 讓區塊標頭的配對／場地徽章比列內的明顯：加大、粗體、深色外框，
+// 滑動長列表時能快速定位。
+const blockBadgeClass = 'border-2 border-foreground/70 px-3 py-1 text-base font-bold';
 
 // 整個配對當作一個單位，用兩組中順序較前面那組的顏色代表整個配對
 // （例如 A vs D 用 A 的顏色），不是兩組各自上色。
-function PairingHeader({ matches, format }: { matches: MatchFull[]; format: 'friendly' | 'club' }) {
+function PairingHeader({
+  matches,
+  format,
+  className,
+}: {
+  matches: MatchFull[];
+  format: 'friendly' | 'club';
+  className?: string;
+}) {
   const m = matches[0];
   if (format === 'friendly') {
-    return <GroupBadge name={`${m.group.name} 組`} order={m.group.displayOrder ?? 1} />;
+    return <GroupBadge name={`${m.group.name} 組`} order={m.group.displayOrder ?? 1} className={className} />;
   }
   const [first, second] = [m.pairA.group, m.pairB.group].sort((a, b) => a.name.localeCompare(b.name));
-  return <GroupBadge name={`${first.name} 組 vs ${second.name} 組`} order={first.displayOrder ?? 1} />;
+  return (
+    <GroupBadge
+      name={`${first.name} 組 vs ${second.name} 組`}
+      order={first.displayOrder ?? 1}
+      className={className}
+    />
+  );
 }
 
 type Block = { key: string; title: string; order: number; matches: MatchFull[] };
@@ -57,11 +75,15 @@ function BlockSection({
   revision,
   format,
   mode,
+  pointsPerGame,
+  activeIds,
 }: {
   block: Block;
   revision: number;
   format: 'friendly' | 'club';
   mode: GroupingMode;
+  pointsPerGame: number;
+  activeIds: Set<string> | null;
 }) {
   const completed = block.matches.filter((m) => m.status === 'completed').length;
   const first = block.matches[0];
@@ -71,12 +93,12 @@ function BlockSection({
         <div className="text-base font-semibold">
           {mode === 'court' ? (
             first.court ? (
-              <CourtBadge name={first.court.name} order={first.court.displayOrder ?? 1} />
+              <CourtBadge name={first.court.name} order={first.court.displayOrder ?? 1} className={blockBadgeClass} />
             ) : (
               block.title
             )
           ) : (
-            <PairingHeader matches={block.matches} format={format} />
+            <PairingHeader matches={block.matches} format={format} className={blockBadgeClass} />
           )}
         </div>
         <div className="text-xs text-muted-foreground">
@@ -85,7 +107,14 @@ function BlockSection({
       </div>
       <div className="grid gap-2">
         {block.matches.map((m) => (
-          <ScoreRow key={m.id} match={m} revision={revision} format={format} />
+          <ScoreRow
+            key={m.id}
+            match={m}
+            revision={revision}
+            format={format}
+            pointsPerGame={pointsPerGame}
+            locked={activeIds !== null && !activeIds.has(m.id)}
+          />
         ))}
       </div>
     </div>
@@ -126,6 +155,34 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
       );
     },
   });
+
+  // 接力制：每個循環可計分的是「第一個未完賽的段」＋「它的前一段」。
+  // 前一段（剛完賽的）保持可編輯，是為了讓誤按達標能直接 -1 改回——
+  // 退回後該段變回進行中，下一段若還停在帶入的起始分會自動歸零收回
+  // （見 lib/club-relay.ts 的 carryToNext）。等進行段再往後移一段
+  // （例如第 3 段可計分時），第 1 段才真正鎖住。其餘段全部鎖定。
+  let activeIds: Set<string> | null = null;
+  if (tournament.format === 'club') {
+    activeIds = new Set<string>();
+    const byCirc = new Map<string, MatchFull[]>();
+    for (const m of matches) {
+      const key = `${m.roundNumber}|${pairingOf(m).key}`;
+      const arr = byCirc.get(key) ?? [];
+      arr.push(m);
+      byCirc.set(key, arr);
+    }
+    for (const bucket of byCirc.values()) {
+      const sorted = [...bucket].sort((x, y) => x.matchOrder - y.matchOrder);
+      const idx = sorted.findIndex((m) => m.status !== 'completed');
+      if (idx === -1) {
+        // 循環全部完賽：留最後一段可修正誤按
+        if (sorted.length > 0) activeIds.add(sorted[sorted.length - 1].id);
+      } else {
+        activeIds.add(sorted[idx].id);
+        if (idx > 0) activeIds.add(sorted[idx - 1].id);
+      }
+    }
+  }
 
   // Group by group (friendly) or by pairing (club — a match spans two
   // different groups, so grouping by Match.group alone would only show
@@ -250,16 +307,16 @@ export function SectionScoring({ tournament, revision }: { tournament: Tournamen
         {tournament.format === 'club'
           ? (mode === 'group' ? waveBlocks : waveCourtBlocks).map((wb) => (
               <div key={wb.wave}>
-                <div className="mb-2 text-lg font-semibold">{wb.title}</div>
+                <div className="mb-3 border-b-2 border-foreground/20 pb-1 text-2xl font-bold">{wb.title}</div>
                 <div className="space-y-4 pl-3">
                   {wb.blocks.map((b) => (
-                    <BlockSection key={b.key} block={b} revision={revision} format={tournament.format} mode={mode} />
+                    <BlockSection key={b.key} block={b} revision={revision} format={tournament.format} mode={mode} pointsPerGame={tournament.pointsPerGame} activeIds={activeIds} />
                   ))}
                 </div>
               </div>
             ))
           : blocks.map((b) => (
-              <BlockSection key={b.key} block={b} revision={revision} format={tournament.format} mode={mode} />
+              <BlockSection key={b.key} block={b} revision={revision} format={tournament.format} mode={mode} pointsPerGame={tournament.pointsPerGame} activeIds={activeIds} />
             ))}
       </div>
     </section>
@@ -270,10 +327,14 @@ function ScoreRow({
   match,
   revision,
   format,
+  pointsPerGame,
+  locked,
 }: {
   match: MatchFull;
   revision: number;
   format: 'friendly' | 'club';
+  pointsPerGame: number;
+  locked: boolean;
 }) {
   const { toast } = useToast();
   const [a, setA] = useState(match.scoreA);
@@ -295,6 +356,9 @@ function ScoreRow({
   }, [match.scoreA, match.scoreB, revision]);
 
   function bump(side: 'A' | 'B', delta: number) {
+    // 鎖定的段（非該循環目前進行中的段）完全不動分——同時擋住
+    // 列內按鈕與全螢幕計分的點擊。
+    if (locked) return;
     const nextA = side === 'A' ? Math.max(0, a + delta) : a;
     const nextB = side === 'B' ? Math.max(0, b + delta) : b;
     if (nextA === a && nextB === b) return;
@@ -319,7 +383,12 @@ function ScoreRow({
         if (e instanceof ApiError) {
           setA(match.scoreA);
           setB(match.scoreB);
-          toast({ title: '計分失敗', description: e.body?.error, variant: 'destructive' });
+          const code = e.body?.error;
+          toast({
+            title: '計分失敗',
+            description: code === 'score_exceeds_target' ? '已達換人分數，不能再加分' : code,
+            variant: 'destructive',
+          });
         } else {
           // 不確定分數到底有沒有送達，先不說「失敗」，避免工作人員誤以
           // 為畫面上的數字是錯的、手動再調整一次反而把正確分數改壞。
@@ -337,6 +406,8 @@ function ScoreRow({
 
   const isCompleted = match.status === 'completed';
   const isPlaying = !isCompleted && (match.scoreA > 0 || match.scoreB > 0);
+  // 會內賽累計接力：第 N 段換人分數 = N × pointsPerGame
+  const target = format === 'club' ? match.matchOrder * pointsPerGame : null;
 
   return (
     <Card className={`space-y-3 p-3 ${isCompleted ? 'border-emerald-300 bg-emerald-50' : ''}`}>
@@ -344,6 +415,11 @@ function ScoreRow({
         <span className="inline-flex items-center gap-1">
           <PairingHeader matches={[match]} format={format} />
           <span className="text-muted-foreground">#{match.matchOrder}</span>
+          {target !== null && (
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600">
+              換人分 {target}
+            </span>
+          )}
         </span>
         {match.court && <CourtBadge name={match.court.name} order={match.court.displayOrder ?? 1} />}
         <span className="ml-auto flex items-center gap-2">
@@ -360,6 +436,7 @@ function ScoreRow({
             scoreA={a}
             scoreB={b}
             onBump={bump}
+            target={target}
           />
         </span>
       </div>
@@ -376,6 +453,7 @@ function ScoreRow({
                   variant="outline"
                   className="h-10 w-10 text-xl sm:h-12 sm:w-12 sm:text-2xl"
                   onClick={() => bump(side, -1)}
+                  disabled={locked}
                   aria-label="-1"
                 >
                   −
@@ -387,6 +465,7 @@ function ScoreRow({
                   size="icon"
                   className="h-10 w-10 text-xl sm:h-12 sm:w-12 sm:text-2xl"
                   onClick={() => bump(side, +1)}
+                  disabled={locked}
                   aria-label="+1"
                 >
                   +

@@ -59,7 +59,7 @@ export function ViewerClient({
             />
           </TabsContent>
           <TabsContent value="matches">
-            <MatchesTab tournamentId={tournamentId} revision={revision} format={tournament.format} />
+            <MatchesTab tournamentId={tournamentId} revision={revision} format={tournament.format} pointsPerGame={tournament.pointsPerGame} />
           </TabsContent>
           <TabsContent value="standings">
             <StandingsTab tournamentId={tournamentId} revision={revision} format={tournament.format} />
