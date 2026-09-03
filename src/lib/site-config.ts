@@ -21,6 +21,7 @@ export function siteIconImageUrl(value: string | null | undefined): string | nul
 
 export const BUILTIN_LOGOS = [
   { key: '/olddriver.png', label: '老司機' },
+  { key: '/strongheart.png', label: '強心臟' },
 ] as const;
 
 const DEFAULTS: SiteConfig = {

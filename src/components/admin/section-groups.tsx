@@ -31,6 +31,7 @@ export function SectionGroups({
   const { toast } = useToast();
   const [groups, setGroups] = useState<GroupWithData[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [hasMatches, setHasMatches] = useState(false);
 
   const canGenerate = tournament.status === 'draft' || tournament.status === 'grouping';
   const canEdit = tournament.status === 'grouping';
@@ -44,6 +45,11 @@ export function SectionGroups({
     });
     api<Player[]>(`/api/tournaments/${tournament.id}/players`).then((data) => {
       if (!isCancelled()) setPlayers(data);
+    });
+    // 只要有任何循環的賽程產生，組名就鎖定（'match.generated' 會 bump
+    // revision，這裡跟著重抓保持同步）。
+    api<unknown[]>(`/api/tournaments/${tournament.id}/matches`).then((data) => {
+      if (!isCancelled()) setHasMatches(data.length > 0);
     });
   }, [tournament.id, revision]);
 
@@ -92,6 +98,7 @@ export function SectionGroups({
     group_too_small: '有一組人數少於 2 人，請調整組數或增加球員',
     odd_players_in_group: '有一組人數是奇數（雙打需要偶數），請調整「組數」設定或增減球員人數後再試一次',
     duplicate_player: '同一位球員被分到多組，請重新整理後再試一次',
+    club_odd_group_count: '會內賽的隊伍數必須為偶數（兩兩對戰），請調整組數讓隊伍總數為偶數',
   };
 
   async function submitGroups(groupsPayload: { levelCode: string; playerIds: string[] }[]) {
@@ -146,6 +153,19 @@ export function SectionGroups({
       .map((playerIds) => ({ levelCode: '混合', playerIds }));
     const created = await submitGroups(groupsPayload);
     if (created) toast({ title: '已產生分組' });
+  }
+
+  async function updateGroupName(groupId: string, name: string) {
+    try {
+      await api(`/api/groups/${groupId}`, { method: 'PATCH', body: { name } });
+    } catch (e: any) {
+      const code = e.body?.error;
+      toast({
+        title: '更新組名失敗',
+        description: code === 'matches_already_generated' ? '賽程已產生，組名不得再修改' : code,
+        variant: 'destructive',
+      });
+    }
   }
 
   async function updatePlayer(playerId: string, patch: { name?: string; seed?: number | null }) {
@@ -224,8 +244,21 @@ export function SectionGroups({
           return (
             <Card key={g.id} className="p-3">
               <div className="mb-2 flex items-center justify-between">
-                <div className="font-semibold">
-                  {g.name} 組{' '}
+                <div className="flex items-center gap-1 font-semibold">
+                  {canEditNames && !hasMatches ? (
+                    <input
+                      defaultValue={g.name}
+                      title="組別名稱"
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        if (v && v !== g.name) updateGroupName(g.id, v);
+                      }}
+                      className="h-7 w-20 rounded border px-1"
+                    />
+                  ) : (
+                    <span>{g.name}</span>
+                  )}
+                  <span>組</span>
                   <span className="text-xs text-muted-foreground">({g.levelCode})</span>
                 </div>
                 {isLocked && (

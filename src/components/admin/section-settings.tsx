@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { BUILTIN_LOGOS, siteIconImageUrl } from '@/lib/site-config';
 import type { Tournament } from '@prisma/client';
 
 const BANNER_COLORS = [
@@ -79,7 +80,7 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
     }
   }
 
-  const iconPreview = bannerIconImage ? `/api/uploads/${bannerIconImage}` : null;
+  const iconPreview = siteIconImageUrl(bannerIconImage);
 
   return (
     <section className="space-y-4">
@@ -221,6 +222,21 @@ export function SectionSettings({ tournament }: { tournament: Tournament }) {
           <p className="text-xs text-muted-foreground">
             支援 PNG / JPG / WebP，≤ 1MB。上傳後記得按「儲存設定」。
           </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">或使用內建 logo：</span>
+            {BUILTIN_LOGOS.map((logo) => (
+              <Button
+                key={logo.key}
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setBannerIconImage(logo.key)}
+                disabled={uploading}
+              >
+                {logo.label}
+              </Button>
+            ))}
+          </div>
         </div>
 
         <Button onClick={saveSettings} size="sm">
