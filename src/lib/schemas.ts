@@ -38,6 +38,10 @@ export const UpdatePlayer = z.object({
   seed: z.number().int().min(1).max(999).nullable().optional(),
 });
 
+export const UpdateGroup = z.object({
+  name: z.string().trim().min(1).max(20),
+});
+
 // Used in POST /api/tournaments/:id/groups/generate
 export const AssignGroups = z.object({
   groups: z
@@ -55,8 +59,8 @@ export const CreateCourt = z.object({
 });
 
 export const UpdateMatchScore = z.object({
-  scoreA: z.number().int().min(0).max(30),
-  scoreB: z.number().int().min(0).max(30),
+  scoreA: z.number().int().min(0).max(999),
+  scoreB: z.number().int().min(0).max(999),
 });
 
 export const BulkCreatePlayers = z.object({

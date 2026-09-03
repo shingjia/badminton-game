@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { conflict, notFound, ok, parseJson, requireAdmin } from '@/lib/api-helpers';
 import { UpdateMatchScore } from '@/lib/schemas';
+import { carryToNext } from '@/lib/club-relay';
 import { emitToTournament } from '@/lib/socket-server';
 
 type Params = { params: { id: string } };
@@ -14,7 +15,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const match = await prisma.match.findUnique({
     where: { id: params.id },
-    include: { tournament: true },
+    include: {
+      tournament: true,
+      pairA: { select: { groupId: true } },
+      pairB: { select: { groupId: true } },
+    },
   });
   if (!match) return notFound();
 
@@ -22,8 +27,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return conflict('tournament_not_in_progress');
   }
 
-  const target = match.tournament.pointsPerGame;
+  // 累計接力計分制（會內賽）：第 N 段（matchOrder=N）的換人分數為
+  // N × pointsPerGame；任一隊累計達到該分數即結束這一段。
+  // 一般友誼賽：維持原本 pointsPerGame 即為目標分。
+  const target =
+    match.tournament.format === 'club'
+      ? match.matchOrder * match.tournament.pointsPerGame
+      : match.tournament.pointsPerGame;
   const maxScore = Math.max(parsed.data.scoreA, parsed.data.scoreB);
+  // 會內賽：每段分數不得超過該段換人分數（第 N 段上限 N × pointsPerGame）。
+  if (match.tournament.format === 'club' && maxScore > target) {
+    return conflict('score_exceeds_target');
+  }
   // 達標即算完賽；分數歸零或未達標皆為「進行中」(DB status: pending)。
   const newStatus = maxScore >= target ? 'completed' : 'pending';
 
@@ -41,6 +56,31 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     tournamentId: updated.tournamentId,
     match: updated,
   });
+
+  // 接力帶分：本段完賽時把結束分數帶進同配對的下一段當起始分
+  // （帶入/收回的判斷規則見 lib/club-relay.ts 的 carryToNext）。
+  if (match.tournament.format === 'club') {
+    const next = await prisma.match.findFirst({
+      where: {
+        tournamentId: match.tournamentId,
+        roundNumber: match.roundNumber,
+        matchOrder: match.matchOrder + 1,
+        pairA: { groupId: match.pairA.groupId },
+        pairB: { groupId: match.pairB.groupId },
+      },
+    });
+    const carry = carryToNext(match, parsed.data, newStatus, next);
+    if (carry && next) {
+      const nextUpdated = await prisma.match.update({
+        where: { id: next.id },
+        data: { scoreA: carry.scoreA, scoreB: carry.scoreB },
+      });
+      emitToTournament(nextUpdated.tournamentId, 'match.scored', {
+        tournamentId: nextUpdated.tournamentId,
+        match: nextUpdated,
+      });
+    }
+  }
 
   // Roll up tournament status from the per-match states.
   const pendingCount = await prisma.match.count({

@@ -2,6 +2,7 @@ export type MatchResult = {
   pairAGroupId: string;
   pairBGroupId: string;
   roundNumber: number;
+  matchOrder: number;
   status: 'pending' | 'completed';
   scoreA: number;
   scoreB: number;
@@ -23,29 +24,31 @@ export type GroupStandingRow = {
 type UnrankedRow = Omit<GroupStandingRow, 'rank'>;
 
 /**
- * Ranks a club-format tournament's GROUPS against each other. A club
- * match's win/loss is decided at the CIRCULATION level (one
- * roundNumber's group-A-vs-group-B pairing, which spans several
- * individual matches -- e.g. 3 doubles pairs from a 6-person group all
- * playing the other group's 3 pairs) -- not per individual match. Once
- * every match in a circulation is completed, whichever group's combined
- * score across all of them is higher gets 1 win for that circulation
- * (the other gets 1 loss). A circulation with any match still pending
- * contributes nothing to wins/losses yet.
+ * Ranks a club-format tournament's GROUPS against each other under the
+ * relay cumulative scoring model: within a circulation (one
+ * roundNumber's group-A-vs-group-B pairing), each segment (matchOrder =
+ * N) carries the running total forward, so a match's stored score IS
+ * the circulation's cumulative score at that point (segment N ends when
+ * one side reaches N × pointsPerGame).
  *
- * points-for/points-against are a straight sum of every completed
- * individual match's own score, counted once per match (not once per
- * player) -- these update live regardless of whether their circulation's
- * win/loss has been decided yet.
+ * Win/loss is decided per circulation: once every segment is completed,
+ * the FINAL segment's scores are the finish totals -- whichever group
+ * reached the final target score first is ahead there and gets the
+ * circulation's 1 win (the other 1 loss). A circulation with any
+ * segment still pending contributes nothing to wins/losses yet.
  *
- * A circulation's combined score can tie exactly even when no individual
- * match tied (e.g. +5/+5/-10 nets to 0). When that happens, the tie is
- * broken by each group's OVERALL points-against across the whole
- * tournament so far (fewer conceded wins the circulation too) -- the
- * same metric already used as the final tie-break for the whole
- * standings table below. If THAT also ties (fully undecidable), both
- * groups are credited with the circulation's win and neither takes a
- * loss.
+ * points-for/points-against: one entry per circulation -- its latest
+ * completed segment's (cumulative) scores. Summing every segment would
+ * double-count, since each segment already includes all previous ones.
+ * These update live as segments complete.
+ *
+ * An exact finish-total tie can't happen in normal relay play (one side
+ * reaches the target first and scores are capped there), but manual
+ * score edits can force one. When that happens, the tie is broken by
+ * each group's OVERALL points-against across the whole tournament so
+ * far (fewer conceded wins the circulation too). If THAT also ties
+ * (fully undecidable), both groups are credited with the circulation's
+ * win and neither takes a loss.
  *
  * Ranking: wins desc, then points-for desc, then points-against asc
  * (fewer conceded ranks higher). Ranks use SQL RANK() semantics: tied
@@ -70,21 +73,6 @@ export function computeGroupStandings(matches: MatchResult[]): GroupStandingRow[
     group(m.pairBGroupId);
   }
 
-  // points-for/points-against: once per completed match, not once per player.
-  for (const m of matches) {
-    if (m.status !== 'completed') continue;
-    const a = group(m.pairAGroupId);
-    a.pointsFor += m.scoreA;
-    a.pointsAgainst += m.scoreB;
-    a.pointDiff += m.scoreA - m.scoreB;
-    const b = group(m.pairBGroupId);
-    b.pointsFor += m.scoreB;
-    b.pointsAgainst += m.scoreA;
-    b.pointDiff += m.scoreB - m.scoreA;
-  }
-
-  // wins/losses: one per fully-completed circulation, decided by each
-  // side's combined score across every match in that circulation.
   const byCirculation = new Map<string, MatchResult[]>();
   for (const m of matches) {
     const key = `${m.roundNumber}|${m.pairAGroupId}|${m.pairBGroupId}`;
@@ -92,27 +80,40 @@ export function computeGroupStandings(matches: MatchResult[]): GroupStandingRow[
     arr.push(m);
     byCirculation.set(key, arr);
   }
+
+  // points-for/points-against: relay scores are cumulative, so a
+  // circulation's running total is its latest COMPLETED segment's
+  // scores -- counted once per circulation, never summed across
+  // segments (that would double-count every earlier segment).
+  for (const bucket of byCirculation.values()) {
+    const done = bucket.filter((m) => m.status === 'completed');
+    if (done.length === 0) continue;
+    const latest = done.reduce((x, y) => (y.matchOrder > x.matchOrder ? y : x));
+    const a = group(latest.pairAGroupId);
+    a.pointsFor += latest.scoreA;
+    a.pointsAgainst += latest.scoreB;
+    a.pointDiff += latest.scoreA - latest.scoreB;
+    const b = group(latest.pairBGroupId);
+    b.pointsFor += latest.scoreB;
+    b.pointsAgainst += latest.scoreA;
+    b.pointDiff += latest.scoreB - latest.scoreA;
+  }
+
+  // wins/losses: one per fully-completed circulation. The final
+  // segment's cumulative scores are the finish totals -- whoever
+  // reached the final target score first is ahead there.
   for (const bucket of byCirculation.values()) {
     if (bucket.some((m) => m.status !== 'completed')) continue;
     const { pairAGroupId, pairBGroupId } = bucket[0];
-    let totalA = 0;
-    let totalB = 0;
-    for (const m of bucket) {
-      totalA += m.scoreA;
-      totalB += m.scoreB;
-    }
+    const last = bucket.reduce((x, y) => (y.matchOrder > x.matchOrder ? y : x));
+    const totalA = last.scoreA;
+    const totalB = last.scoreB;
     const a = group(pairAGroupId);
     const b = group(pairBGroupId);
-    // A circulation's combined score can tie even though no individual
-    // match tied (e.g. 3 matches at +5/+5/-10 nets to a 0 difference).
-    // Confirmed with the organizer: this became a real possibility once
-    // the format moved from 2 courts (matches ran serially, so "first to
-    // reach the point target" inherently prevented ties) to 3 courts
-    // (matches run in parallel and are only summed up afterward, which
-    // CAN produce a genuine tie). Break a tied total by each group's
-    // OVERALL points-against across the whole tournament so far (fewer
-    // conceded wins this circulation too) -- the same metric already
-    // used as the final tie-break for the whole standings table.
+    // A finish-total tie can't happen in normal relay play (first to
+    // the target ends the segment, scores capped there) but manual
+    // edits can force one -- keep the organizer-confirmed tiebreak:
+    // overall points-against across the whole tournament so far.
     const totalTied = totalA === totalB;
     const pointsAgainstTied = a.pointsAgainst === b.pointsAgainst;
     if (totalTied && pointsAgainstTied) {

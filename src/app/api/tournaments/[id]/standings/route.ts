@@ -21,6 +21,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       pairAGroupId: m.pairA.groupId,
       pairBGroupId: m.pairB.groupId,
       roundNumber: m.roundNumber,
+      matchOrder: m.matchOrder,
       status: m.status,
       scoreA: m.scoreA,
       scoreB: m.scoreB,

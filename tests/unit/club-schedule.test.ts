@@ -1,16 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildClubSchedule, primaryCourtCount, type GroupRoster } from '@/lib/club-schedule';
-
-describe('primaryCourtCount', () => {
-  it('balances 4 groups x 6 players -> keeps 4 matches on the primary court', () => {
-    expect(primaryCourtCount(4, 6)).toBe(4);
-  });
-
-  it('clamps to [0, n]', () => {
-    expect(primaryCourtCount(2, 3)).toBeGreaterThanOrEqual(0);
-    expect(primaryCourtCount(100, 3)).toBeLessThanOrEqual(3);
-  });
-});
+import { buildClubSchedule, type GroupRoster } from '@/lib/club-schedule';
 
 describe('buildClubSchedule', () => {
   function roster(groupId: string, n: number): GroupRoster {
@@ -44,21 +33,9 @@ describe('buildClubSchedule', () => {
     for (const count of pairingCounts.values()) expect(count).toBe(6);
   });
 
-  it('splits each pairing 4 primary / 2 shared, every wave has exactly 2 pairings using courts 0 and 1', () => {
+  it('4 groups -> 3 waves, each wave has exactly 2 simultaneous pairings on courts 0 and 1', () => {
     const groups = ['A', 'B', 'C', 'D'].map((g) => roster(g, 6));
     const drafts = buildClubSchedule(groups);
-
-    const byPairing = new Map<string, { primary: number; shared: number }>();
-    for (const d of drafts) {
-      const key = [d.groupAId, d.groupBId].sort().join('-');
-      const counts = byPairing.get(key) ?? { primary: 0, shared: 0 };
-      counts[d.courtSlot]++;
-      byPairing.set(key, counts);
-    }
-    for (const counts of byPairing.values()) {
-      expect(counts.primary).toBe(4);
-      expect(counts.shared).toBe(2);
-    }
 
     const byWave = new Map<number, Set<number>>();
     for (const d of drafts) {
@@ -72,10 +49,20 @@ describe('buildClubSchedule', () => {
     }
   });
 
-  it('interleaves shared-court matches across a wave\'s pairings instead of clumping', () => {
+  it('a pairing keeps all its segments on its own dedicated court (same pairingIndexInWave), ordered 1..n', () => {
     const groups = ['A', 'B', 'C', 'D'].map((g) => roster(g, 6));
     const drafts = buildClubSchedule(groups);
-    const wave1Shared = drafts.filter((d) => d.roundNumber === 1 && d.courtSlot === 'shared');
-    expect(wave1Shared.map((d) => d.pairingIndexInWave)).toEqual([0, 1, 0, 1]);
+    const byPairing = new Map<string, { indices: Set<number>; orders: number[] }>();
+    for (const d of drafts) {
+      const key = [d.groupAId, d.groupBId].sort().join('-');
+      const entry = byPairing.get(key) ?? { indices: new Set(), orders: [] };
+      entry.indices.add(d.pairingIndexInWave);
+      entry.orders.push(d.matchOrder);
+      byPairing.set(key, entry);
+    }
+    for (const entry of byPairing.values()) {
+      expect(entry.indices.size).toBe(1); // relay: one court per pairing
+      expect([...entry.orders].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6]);
+    }
   });
 });

@@ -46,15 +46,11 @@ export async function POST(req: NextRequest, { params }: Params) {
   let wave = 0; // only meaningful for club format — captured for the transaction below
 
   if (tournament.format === 'club') {
-    // Groups play each other directly (round-robin), not internally —
-    // needs exactly groupCount/2 dedicated courts, optionally +1 shared
-    // court for load-balancing overflow. Without the shared court, every
-    // one of a pairing's matches just stays on its own dedicated court —
-    // see the courtId resolution below.
+    // Groups play each other directly (round-robin), not internally.
+    // 接力累計計分：同一配對的各段必須在同一場地依序進行（每段接續前段
+    // 分數），所以場地數必須剛好 = 組數/2（4 隊 2 場地、6 隊 3 場地）。
     if (groups.length % 2 !== 0) return conflict('odd_group_count');
-    const primaryCourtsNeeded = groups.length / 2;
-    const hasSharedCourt = courts.length === primaryCourtsNeeded + 1;
-    if (courts.length !== primaryCourtsNeeded && !hasSharedCourt) return conflict('court_count_mismatch');
+    if (courts.length !== groups.length / 2) return conflict('court_count_mismatch');
 
     // Each circulation (wave) is generated independently, so staff can
     // adjust a group's 棒次 (seed order) between circulations and have it
@@ -68,6 +64,16 @@ export async function POST(req: NextRequest, { params }: Params) {
     const maxWave = groups.length - 1;
     if (!Number.isInteger(wave) || wave < 1 || wave > maxWave) return conflict('invalid_wave');
 
+    // 已有分數的循環不允許重新產生（會洗掉比分）；全部歸零後才放行。
+    const scoredCount = await prisma.match.count({
+      where: {
+        tournamentId: params.id,
+        roundNumber: wave,
+        OR: [{ scoreA: { gt: 0 } }, { scoreB: { gt: 0 } }],
+      },
+    });
+    if (scoredCount > 0) return conflict('wave_has_scores');
+
     try {
       const rosters = groups.map((g) => ({
         groupId: g.id,
@@ -77,14 +83,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       clubDrafts = schedule.map((m) => ({
         ...m,
         tournamentId: params.id,
-        // No shared court (courts.length === primaryCourtsNeeded): every
-        // match — 'primary' or 'shared' alike — stays on its own
-        // pairing's dedicated court, since there's no extra court to
-        // offload the 'shared'-tagged overflow onto.
-        courtId:
-          hasSharedCourt && m.courtSlot === 'shared'
-            ? courts[primaryCourtsNeeded].id
-            : courts[m.pairingIndexInWave].id,
+        courtId: courts[m.pairingIndexInWave].id,
       }));
     } catch (e: any) {
       return conflict(e.message);

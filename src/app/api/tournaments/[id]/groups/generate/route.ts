@@ -26,6 +26,11 @@ export async function POST(req: NextRequest, { params }: Params) {
     return conflict(e.message);
   }
 
+  // 會內賽：隊伍（組）數必須為偶數（兩兩對戰，場地數 = 隊數/2）。
+  if (tournament.format === 'club' && parsed.data.groups.length % 2 !== 0) {
+    return conflict('club_odd_group_count');
+  }
+
   // Verify all playerIds belong to this tournament
   const allPlayerIds = parsed.data.groups.flatMap((g) => g.playerIds);
   const found = await prisma.player.findMany({
