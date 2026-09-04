@@ -31,7 +31,29 @@ export function SectionGroups({
   const { toast } = useToast();
   const [groups, setGroups] = useState<GroupWithData[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [hasMatches, setHasMatches] = useState(false);
+  const [matchInfo, setMatchInfo] = useState<
+    { roundNumber: number; status: string; scoreA: number; scoreB: number }[]
+  >([]);
+  const hasMatches = matchInfo.length > 0;
+
+  // 進行中的循環：已開始計分（有分數或有完賽場次）但還沒全部完賽。
+  // 這期間調整棒次沒有意義（該循環的配對已固定），擋下並提示。
+  const waveInPlay = (() => {
+    const byWave = new Map<number, typeof matchInfo>();
+    for (const m of matchInfo) {
+      const arr = byWave.get(m.roundNumber) ?? [];
+      arr.push(m);
+      byWave.set(m.roundNumber, arr);
+    }
+    for (const bucket of byWave.values()) {
+      const started = bucket.some(
+        (m) => m.status === 'completed' || m.scoreA > 0 || m.scoreB > 0,
+      );
+      const done = bucket.every((m) => m.status === 'completed');
+      if (started && !done) return true;
+    }
+    return false;
+  })();
 
   const canGenerate = tournament.status === 'draft' || tournament.status === 'grouping';
   const canEdit = tournament.status === 'grouping';
@@ -46,10 +68,12 @@ export function SectionGroups({
     api<Player[]>(`/api/tournaments/${tournament.id}/players`).then((data) => {
       if (!isCancelled()) setPlayers(data);
     });
-    // 只要有任何循環的賽程產生，組名就鎖定（'match.generated' 會 bump
-    // revision，這裡跟著重抓保持同步）。
-    api<unknown[]>(`/api/tournaments/${tournament.id}/matches`).then((data) => {
-      if (!isCancelled()) setHasMatches(data.length > 0);
+    // 組名鎖定與「循環進行中」判斷都要看比賽狀態（'match.generated' 會
+    // bump revision，切回這個分頁也會重新掛載重抓保持同步）。
+    api<{ roundNumber: number; status: string; scoreA: number; scoreB: number }[]>(
+      `/api/tournaments/${tournament.id}/matches`,
+    ).then((data) => {
+      if (!isCancelled()) setMatchInfo(data);
     });
   }, [tournament.id, revision]);
 
@@ -74,12 +98,37 @@ export function SectionGroups({
   }
 
   async function moveSeed(g: GroupWithData, playerId: string, dir: 'up' | 'down') {
+    if (waveInPlay) {
+      toast({
+        title: '循環比賽進行中，無法調整順序',
+        description: '待目前循環的所有場次完賽後即可調整',
+        variant: 'destructive',
+      });
+      return;
+    }
     const ordered = orderPlayers(g.players);
     const i = ordered.findIndex((p) => p.id === playerId);
     const j = dir === 'up' ? i - 1 : i + 1;
     if (i < 0 || j < 0 || j >= ordered.length) return;
     [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
-    await Promise.all(ordered.map((p, idx) => updatePlayer(p.id, { seed: idx + 1 })));
+    // 樂觀更新：先本地重排再送 PATCH，畫面不依賴 socket 廣播回推
+    // （廣播若沒收到，之前會看起來「按了沒反應」）。
+    const seedOf = new Map(ordered.map((p, idx) => [p.id, idx + 1]));
+    setGroups((gs) =>
+      gs.map((gr) =>
+        gr.id === g.id
+          ? { ...gr, players: gr.players.map((p) => ({ ...p, seed: seedOf.get(p.id) ?? p.seed })) }
+          : gr,
+      ),
+    );
+    // 只送真的變動的棒次（正常情況一次交換只有 2 個人變），避免整組
+    // N 個 PATCH＋N 次廣播重抓把連線塞滿，拖慢接下來的操作。
+    await Promise.all(
+      ordered
+        .map((p, idx) => ({ p, seed: idx + 1 }))
+        .filter(({ p, seed }) => p.seed !== seed)
+        .map(({ p, seed }) => updatePlayer(p.id, { seed })),
+    );
   }
 
   function byLevelBuckets() {
@@ -269,25 +318,17 @@ export function SectionGroups({
               </div>
 
               <div className="mb-3">
-                <div className="mb-1 text-xs font-medium text-muted-foreground">球員</div>
+                <div className="mb-1 text-xs font-medium text-muted-foreground">順序</div>
                 <ul className="space-y-1">
                   {orderPlayers(g.players).map((p, idx) => (
                     <li key={p.id} className="flex items-center gap-2 text-sm">
                       {canEditNames && (
-                        <input
-                          type="number"
-                          min={1}
-                          max={999}
-                          defaultValue={p.seed ?? ''}
-                          placeholder="棒次"
-                          title="棒次"
-                          onBlur={(e) => {
-                            const v = e.target.value.trim();
-                            const seed = v ? Number(v) : null;
-                            if (seed !== (p.seed ?? null)) updatePlayer(p.id, { seed });
-                          }}
-                          className="h-7 w-12 shrink-0 rounded border px-1 text-center"
-                        />
+                        <span
+                          title="順序（用右側箭頭調整）"
+                          className="flex h-7 w-12 shrink-0 items-center justify-center rounded border bg-muted text-center text-muted-foreground"
+                        >
+                          {idx + 1}
+                        </span>
                       )}
                       {canEditNames ? (
                         <input

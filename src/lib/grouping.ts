@@ -54,9 +54,12 @@ export async function applyGrouping(
     pairingLockedAt: Date | null;
   }[]
 > {
+  // 棒次是「組內順序」，重新分組後舊棒次沒有意義（成員都換了），
+  // 一併歸零讓前端對每個新組乾淨地自動重編 1..N，避免殘留的舊棒次
+  // 造成重號/跳號。
   await tx.player.updateMany({
     where: { tournamentId },
-    data: { groupId: null },
+    data: { groupId: null, seed: null },
   });
 
   await tx.group.deleteMany({ where: { tournamentId } });
