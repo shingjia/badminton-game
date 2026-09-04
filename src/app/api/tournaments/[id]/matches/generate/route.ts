@@ -26,7 +26,13 @@ export async function POST(req: NextRequest, { params }: Params) {
   const tournament = await prisma.tournament.findUnique({ where: { id: params.id } });
   if (!tournament) return notFound('tournament_not_found');
 
-  const statusErr = ensureStatus(tournament.status, ['in_progress']);
+  // 會內賽允許在 finished 狀態產生下一循環：逐循環產生的流程中，
+  // 舊資料可能在只完賽第一循環時就被誤標成 finished（rollup 舊 bug），
+  // 產生新循環後會把狀態撥回 in_progress 自我修復。
+  const statusErr = ensureStatus(
+    tournament.status,
+    tournament.format === 'club' ? ['in_progress', 'finished'] : ['in_progress'],
+  );
   if (statusErr) return statusErr;
 
   const groups = await prisma.group.findMany({
@@ -160,49 +166,75 @@ export async function POST(req: NextRequest, { params }: Params) {
       created.push(m);
     }
 
-    for (const d of clubDrafts) {
+    if (clubDrafts.length > 0) {
       // Each side's one-off Pair is tagged with *its own* group — not a
       // shared value — so standings can attribute stats correctly (see
-      // lib/player-standings.ts).
-      const pairA = await tx.pair.create({
-        data: {
-          tournamentId: d.tournamentId,
-          groupId: d.groupAId,
-          player1Id: d.sideAPlayers[0],
-          player2Id: d.sideAPlayers[1],
-          displayOrder: d.matchOrder,
-        },
-      });
-      const pairB = await tx.pair.create({
-        data: {
-          tournamentId: d.tournamentId,
-          groupId: d.groupBId,
-          player1Id: d.sideBPlayers[0],
-          player2Id: d.sideBPlayers[1],
-          displayOrder: d.matchOrder,
-        },
-      });
+      // lib/player-standings.ts). Pair ids are pre-generated so pairs and
+      // matches can each go in as one createMany (2 round trips for the
+      // whole wave, instead of 3 sequential queries per match — the old
+      // loop was the slow part of wave generation).
+      //
       // Match.groupId is a required single FK but a club match spans two
       // groups — pairA's group is stored here as a technical placeholder
       // only; nothing should read it as "the" group for a club match
       // (use pairA.group / pairB.group instead, see matches-tab.tsx).
-      const m = await tx.match.create({
-        data: {
+      const pairRows = [];
+      const matchRows = [];
+      for (const d of clubDrafts) {
+        const pairAId = crypto.randomUUID();
+        const pairBId = crypto.randomUUID();
+        pairRows.push(
+          {
+            id: pairAId,
+            tournamentId: d.tournamentId,
+            groupId: d.groupAId,
+            player1Id: d.sideAPlayers[0],
+            player2Id: d.sideAPlayers[1],
+            displayOrder: d.matchOrder,
+          },
+          {
+            id: pairBId,
+            tournamentId: d.tournamentId,
+            groupId: d.groupBId,
+            player1Id: d.sideBPlayers[0],
+            player2Id: d.sideBPlayers[1],
+            displayOrder: d.matchOrder,
+          },
+        );
+        matchRows.push({
           tournamentId: d.tournamentId,
           groupId: d.groupAId,
-          pairAId: pairA.id,
-          pairBId: pairB.id,
+          pairAId,
+          pairBId,
           roundNumber: d.roundNumber,
           matchOrder: d.matchOrder,
           courtId: d.courtId,
-        },
+        });
+      }
+      await tx.pair.createMany({ data: pairRows });
+      await tx.match.createMany({ data: matchRows });
+      const createdClub = await tx.match.findMany({
+        where: { tournamentId: params.id, roundNumber: wave },
       });
-      created.push(m);
+      created.push(...createdClub);
     }
 
     return created;
   });
 
   emitToTournament(params.id, 'match.generated', { tournamentId: params.id, matches: result });
+
+  // 在 finished 狀態下產生了新循環 → 賽事其實還沒打完，撥回進行中。
+  if (tournament.status === 'finished') {
+    const reopened = await prisma.tournament.update({
+      where: { id: params.id },
+      data: { status: 'in_progress', finishedAt: null },
+    });
+    emitToTournament(params.id, 'tournament.updated', {
+      tournamentId: params.id,
+      tournament: reopened,
+    });
+  }
+
   return ok({ matches: result, count: result.length });
 }

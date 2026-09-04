@@ -189,7 +189,11 @@ export function SectionMatches({ tournament, revision }: { tournament: Tournamen
                   <Button
                     onClick={() => generate(wave)}
                     size="sm"
-                    disabled={tournament.status !== 'in_progress' || pendingWave === wave || hasScores}
+                    disabled={
+                      (tournament.status !== 'in_progress' && tournament.status !== 'finished') ||
+                      pendingWave === wave ||
+                      hasScores
+                    }
                   >
                     {waveMatches.length > 0 ? '重新產生' : '產生對戰 + 分配場地'}
                   </Button>

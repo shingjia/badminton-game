@@ -87,7 +87,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     where: { tournamentId: match.tournamentId, status: 'pending' },
   });
 
-  if (pendingCount === 0 && match.tournament.status !== 'finished') {
+  // 會內賽逐循環產生賽程：就算目前所有比賽都完賽，只要還有循環沒
+  // 產生（應有 組數-1 個循環），賽事就還沒結束。
+  let allWavesGenerated = true;
+  if (pendingCount === 0 && match.tournament.format === 'club') {
+    const [groupCount, waves] = await Promise.all([
+      prisma.group.count({ where: { tournamentId: match.tournamentId } }),
+      prisma.match.findMany({
+        where: { tournamentId: match.tournamentId },
+        distinct: ['roundNumber'],
+        select: { roundNumber: true },
+      }),
+    ]);
+    allWavesGenerated = waves.length >= Math.max(1, groupCount - 1);
+  }
+
+  if (pendingCount === 0 && allWavesGenerated && match.tournament.status !== 'finished') {
     await prisma.tournament.update({
       where: { id: match.tournamentId },
       data: { status: 'finished', finishedAt: new Date() },
