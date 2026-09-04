@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useSafeEffect } from '@/lib/use-safe-effect';
 import { useTournamentSocket } from '@/lib/use-socket';
 import { colorForIndex } from '@/lib/badge-colors';
-import { FullscreenScoreButton } from '@/components/admin/fullscreen-score';
+import { FullscreenScorePanel } from '@/components/admin/fullscreen-score';
 import type { Court, Group, Match, Pair, Player, Tournament } from '@prisma/client';
 
 type PairWithPlayers = Pair & { player1: Player; player2: Player; group: Group };
@@ -85,8 +85,69 @@ function BlockSection({
   pointsPerGame: number;
   activeIds: Set<string> | null;
 }) {
+  const { toast } = useToast();
   const completed = block.matches.filter((m) => m.status === 'completed').length;
   const first = block.matches[0];
+
+  // 全螢幕計分提升到區塊層級：同一個覆蓋層內就能用左右箭頭切換
+  // 上一場/下一場（跟觀眾頁的全螢幕一致），不用退出再進。
+  // 面板有自己的一份樂觀分數（fs），跟 ScoreRow 的卡片各自維護——
+  // 兩邊都靠 match.scored 廣播回寫的 props 校正。
+  const [fsId, setFsId] = useState<string | null>(null);
+  const fsOrdered = [...block.matches].sort(
+    (x, y) => x.roundNumber - y.roundNumber || x.matchOrder - y.matchOrder,
+  );
+  const fsIdx = fsOrdered.findIndex((m) => m.id === fsId);
+  const fsMatch = fsIdx >= 0 ? fsOrdered[fsIdx] : null;
+  const fsPrev = fsIdx > 0 ? fsOrdered[fsIdx - 1] : null;
+  const fsNext = fsIdx >= 0 && fsIdx < fsOrdered.length - 1 ? fsOrdered[fsIdx + 1] : null;
+  const [fs, setFs] = useState({ a: 0, b: 0 });
+  const fsPending = useRef(0);
+
+  useEffect(() => {
+    if (!fsMatch || fsPending.current > 0) return;
+    setFs({ a: fsMatch.scoreA, b: fsMatch.scoreB });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fsMatch?.id, fsMatch?.scoreA, fsMatch?.scoreB]);
+
+  const fsLocked = fsMatch != null && activeIds !== null && !activeIds.has(fsMatch.id);
+
+  function fsBump(side: 'A' | 'B', delta: number) {
+    if (!fsMatch || fsLocked) return;
+    // 段已完賽（達到換人分）就不能再加分——避免想按「下一組」箭頭
+    // 沒按準點到半面誤加分；減分保留，誤按達標才能 -1 退回。
+    if (format === 'club' && delta > 0 && fsMatch.status === 'completed') return;
+    const nextA = side === 'A' ? Math.max(0, fs.a + delta) : fs.a;
+    const nextB = side === 'B' ? Math.max(0, fs.b + delta) : fs.b;
+    if (nextA === fs.a && nextB === fs.b) return;
+    setFs({ a: nextA, b: nextB });
+    fsPending.current++;
+    api(`/api/matches/${fsMatch.id}/score`, {
+      method: 'PATCH',
+      body: { scoreA: nextA, scoreB: nextB },
+    })
+      .catch((e) => {
+        if (e instanceof ApiError) {
+          setFs({ a: fsMatch.scoreA, b: fsMatch.scoreB });
+          const code = e.body?.error;
+          toast({
+            title: '計分失敗',
+            description: code === 'score_exceeds_target' ? '已達換人分數，不能再加分' : code,
+            variant: 'destructive',
+          });
+        }
+      })
+      .finally(() => {
+        fsPending.current--;
+      });
+  }
+
+  function fsGo(m: MatchFull) {
+    fsPending.current = 0;
+    setFsId(m.id);
+    setFs({ a: m.scoreA, b: m.scoreB });
+  }
+
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between">
@@ -114,9 +175,34 @@ function BlockSection({
             format={format}
             pointsPerGame={pointsPerGame}
             locked={activeIds !== null && !activeIds.has(m.id)}
+            onFullscreen={() => fsGo(m)}
           />
         ))}
       </div>
+      {fsMatch && (
+        <FullscreenScorePanel
+          open
+          labelA={pairLabel(fsMatch.pairA)}
+          labelB={pairLabel(fsMatch.pairB)}
+          scoreA={fs.a}
+          scoreB={fs.b}
+          target={format === 'club' ? fsMatch.matchOrder * pointsPerGame : null}
+          completed={fsMatch.status === 'completed'}
+          isFinal={format === 'club' && fsIdx === fsOrdered.length - 1}
+          nextLabelA={fsNext ? pairLabel(fsNext.pairA) : undefined}
+          nextLabelB={fsNext ? pairLabel(fsNext.pairB) : undefined}
+          onBump={fsBump}
+          onClose={() => setFsId(null)}
+          onPrev={fsPrev ? () => fsGo(fsPrev) : undefined}
+          onNext={
+            // 接力制：目前段還沒打到換人分之前，不開放跳到下一段
+            //（下一組名單已顯示在下方，不需要提前進下一組）。
+            fsNext && (format !== 'club' || fsMatch.status === 'completed')
+              ? () => fsGo(fsNext)
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 }
@@ -329,12 +415,14 @@ function ScoreRow({
   format,
   pointsPerGame,
   locked,
+  onFullscreen,
 }: {
   match: MatchFull;
   revision: number;
   format: 'friendly' | 'club';
   pointsPerGame: number;
   locked: boolean;
+  onFullscreen: () => void;
 }) {
   const { toast } = useToast();
   const [a, setA] = useState(match.scoreA);
@@ -356,9 +444,10 @@ function ScoreRow({
   }, [match.scoreA, match.scoreB, revision]);
 
   function bump(side: 'A' | 'B', delta: number) {
-    // 鎖定的段（非該循環目前進行中的段）完全不動分——同時擋住
-    // 列內按鈕與全螢幕計分的點擊。
+    // 鎖定的段（非該循環目前進行中的段）完全不動分。
     if (locked) return;
+    // 完賽的段只能減分（誤按達標退回用），不能再加分。
+    if (format === 'club' && delta > 0 && match.status === 'completed') return;
     const nextA = side === 'A' ? Math.max(0, a + delta) : a;
     const nextB = side === 'B' ? Math.max(0, b + delta) : b;
     if (nextA === a && nextB === b) return;
@@ -417,7 +506,7 @@ function ScoreRow({
           <span className="text-muted-foreground">#{match.matchOrder}</span>
           {target !== null && (
             <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600">
-              換人分 {target}
+              {target}分換人
             </span>
           )}
         </span>
@@ -430,14 +519,15 @@ function ScoreRow({
           ) : (
             <Badge variant="secondary">未開賽</Badge>
           )}
-          <FullscreenScoreButton
-            labelA={pairLabel(match.pairA)}
-            labelB={pairLabel(match.pairB)}
-            scoreA={a}
-            scoreB={b}
-            onBump={bump}
-            target={target}
-          />
+          <button
+            type="button"
+            onClick={onFullscreen}
+            title="全螢幕計分"
+            aria-label="全螢幕計分"
+            className="flex h-8 w-8 items-center justify-center rounded border text-sm hover:bg-muted"
+          >
+            ⛶
+          </button>
         </span>
       </div>
       <div className="grid grid-cols-2 gap-3">

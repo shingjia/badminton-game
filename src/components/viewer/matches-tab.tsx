@@ -356,20 +356,20 @@ function MatchList({
               )}
               {done ? (
                 <>
-                  <FullscreenMatchButton match={m} target={target} />
+                  <FullscreenMatchButton match={m} matches={matches} format={format} pointsPerGame={pointsPerGame} />
                   <span className="whitespace-nowrap rounded bg-emerald-600 px-2 py-0.5 font-mono text-sm font-bold text-white">
                     {m.scoreA} - {m.scoreB}
                   </span>
                 </>
               ) : playing ? (
                 <>
-                  <FullscreenMatchButton match={m} target={target} />
+                  <FullscreenMatchButton match={m} matches={matches} format={format} pointsPerGame={pointsPerGame} />
                   <div className="flex flex-col items-end gap-0.5">
                     <span className="whitespace-nowrap rounded bg-amber-500 px-2 py-0.5 font-mono text-sm font-bold text-white">
                       {m.scoreA} - {m.scoreB}
                     </span>
                     {target !== null && (
-                      <span className="text-xs text-muted-foreground">換人分 {target}</span>
+                      <span className="text-xs text-muted-foreground">{target}分換人</span>
                     )}
                   </div>
                 </>
@@ -379,7 +379,7 @@ function MatchList({
                     未開賽
                   </Badge>
                   {target !== null && (
-                    <span className="text-xs text-muted-foreground">換人分 {target}</span>
+                    <span className="text-xs text-muted-foreground">{target}分換人</span>
                   )}
                 </div>
               )}
