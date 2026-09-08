@@ -48,8 +48,8 @@ const ScoreSide = forwardRef<
       }}
       className={`flex flex-1 cursor-pointer flex-col items-center justify-center gap-4 text-center transform-gpu ${bg}`}
     >
-      <div className="text-2xl font-semibold sm:text-3xl lg:text-5xl xl:text-6xl">{label}</div>
-      <div className="font-mono text-6xl font-bold tabular-nums sm:text-9xl lg:text-[11rem] xl:text-[13rem]">{score}</div>
+      <div className="text-2xl font-semibold sm:text-3xl lg:text-6xl xl:text-7xl">{label}</div>
+      <div className="font-mono text-6xl font-bold tabular-nums sm:text-9xl lg:text-[14rem] xl:text-[17rem]">{score}</div>
       <div className="mt-4 flex items-center gap-6">
         <button
           type="button"
@@ -57,7 +57,7 @@ const ScoreSide = forwardRef<
             e.stopPropagation();
             onBump(side, -1);
           }}
-          className="flex h-14 w-14 items-center justify-center rounded-full border border-white/40 bg-white/10 text-3xl hover:bg-white/20"
+          className="flex h-14 w-14 items-center justify-center rounded-full border border-white/40 bg-white/10 text-3xl hover:bg-white/20 lg:h-20 lg:w-20 lg:text-5xl"
           aria-label={`${side} -1`}
         >
           −
@@ -68,14 +68,14 @@ const ScoreSide = forwardRef<
             e.stopPropagation();
             onBump(side, 1);
           }}
-          className="flex h-14 w-14 items-center justify-center rounded-full border border-white/40 bg-white/10 text-3xl hover:bg-white/20"
+          className="flex h-14 w-14 items-center justify-center rounded-full border border-white/40 bg-white/10 text-3xl hover:bg-white/20 lg:h-20 lg:w-20 lg:text-5xl"
           aria-label={`${side} +1`}
         >
           +
         </button>
       </div>
       {nextLabel && (
-        <div className="mt-2 text-base text-white/60 sm:text-xl lg:text-2xl">
+        <div className="mt-2 text-base text-white/60 sm:text-xl lg:text-3xl">
           下一組：{nextLabel}
         </div>
       )}

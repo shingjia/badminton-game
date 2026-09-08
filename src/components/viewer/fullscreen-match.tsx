@@ -112,19 +112,19 @@ export function FullscreenMatchButton({
         className={`text-white ${active ? 'fixed inset-0 z-50 flex flex-col sm:flex-row' : 'hidden'}`}
       >
         <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-blue-950 text-center">
-          <div className="text-xl font-medium text-white/70 sm:text-3xl lg:text-4xl">{shown.pairA.group.name} 組</div>
-          <div className="text-3xl font-semibold sm:text-5xl lg:text-6xl xl:text-7xl">{pairLabel(shown.pairA)}</div>
-          <div className="font-mono text-6xl font-bold tabular-nums sm:text-8xl lg:text-[11rem] xl:text-[13rem]">{shown.scoreA}</div>
+          <div className="text-xl font-medium text-white/70 sm:text-3xl lg:text-5xl">{shown.pairA.group.name} 組</div>
+          <div className="text-3xl font-semibold sm:text-5xl lg:text-7xl xl:text-8xl">{pairLabel(shown.pairA)}</div>
+          <div className="font-mono text-6xl font-bold tabular-nums sm:text-8xl lg:text-[15rem] xl:text-[18rem]">{shown.scoreA}</div>
           {next && (
-            <div className="text-base text-white/60 sm:text-xl lg:text-2xl">下一組：{pairLabel(next.pairA)}</div>
+            <div className="text-base text-white/60 sm:text-xl lg:text-3xl">下一組：{pairLabel(next.pairA)}</div>
           )}
         </div>
         <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-rose-950 text-center">
-          <div className="text-xl font-medium text-white/70 sm:text-3xl lg:text-4xl">{shown.pairB.group.name} 組</div>
-          <div className="text-3xl font-semibold sm:text-5xl lg:text-6xl xl:text-7xl">{pairLabel(shown.pairB)}</div>
-          <div className="font-mono text-6xl font-bold tabular-nums sm:text-8xl lg:text-[11rem] xl:text-[13rem]">{shown.scoreB}</div>
+          <div className="text-xl font-medium text-white/70 sm:text-3xl lg:text-5xl">{shown.pairB.group.name} 組</div>
+          <div className="text-3xl font-semibold sm:text-5xl lg:text-7xl xl:text-8xl">{pairLabel(shown.pairB)}</div>
+          <div className="font-mono text-6xl font-bold tabular-nums sm:text-8xl lg:text-[15rem] xl:text-[18rem]">{shown.scoreB}</div>
           {next && (
-            <div className="text-base text-white/60 sm:text-xl lg:text-2xl">下一組：{pairLabel(next.pairB)}</div>
+            <div className="text-base text-white/60 sm:text-xl lg:text-3xl">下一組：{pairLabel(next.pairB)}</div>
           )}
         </div>
         <div

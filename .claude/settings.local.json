@@ -12,7 +12,13 @@
       "Bash(wsl -l -v)",
       "Bash(npx prisma *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "PowerShell(\"--- dist ---\"; Get-ChildItem \"c:\\\\Private\\\\friendship-competition\\\\dist\" -Name; \"--- public ---\"; Get-ChildItem \"c:\\\\Private\\\\friendship-competition\\\\public\" -Name; \"--- Dockerfile ---\"; Get-Content \"c:\\\\Private\\\\friendship-competition\\\\Dockerfile\")",
+      "PowerShell(Copy-Item *)",
+      "Bash(git -C c:/Private/friendship-competition status --short)",
+      "Bash(git -C c:/Private/friendship-competition log --oneline -3)",
+      "Bash(git -C c:/Private/friendship-competition add public/app.js public/index.html public/olddriver.png)",
+      "Bash(git -C c:/Private/friendship-competition commit -m ' *)"
     ]
   }
 }
